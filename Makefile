@@ -17,7 +17,7 @@ OUTPUT_OBJ=-o build/urlshortener
 
 MAIN_GO=./main.go
 
-all: tidy analyze build install
+all: tidy analyze build
 
 build: build_dir
 	go build ${LDFLAGS_BUILD} ${OUTPUT_OBJ} ${MAIN_GO}

@@ -1,7 +1,14 @@
 package main
 
-import "fmt"
+import "github.com/av0de/urlshortener/cmd"
+
+var (
+	version string
+	commit  string
+	date    string
+	builtBy string
+)
 
 func main() {
-	fmt.Println("Hello World")
+	cmd.Execute(version, commit, date, builtBy)
 }
