@@ -61,7 +61,8 @@
 		"terminal.integrated.defaultProfile.linux": "zsh",
 		"terminal.integrated.fontFamily": "MesloLGS NF",
 		"terminal.integrated.defaultProfile.osx": "zsh",
-		"terminal.integrated.gpuAcceleration": "canvas"
+		"terminal.integrated.gpuAcceleration": "canvas",
+		"files.trimTrailingWhitespace": true,
 	},
 	// Add the IDs of extensions you want installed when the container is created.
 	"extensions": [
