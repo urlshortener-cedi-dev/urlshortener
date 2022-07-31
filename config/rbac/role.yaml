@@ -1,0 +1,33 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: urlshortener-role
+rules:
+- apiGroups:
+  - urlshortener.av0.de
+  resources:
+  - shortlinks
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - urlshortener.av0.de
+  resources:
+  - shortlinks/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - urlshortener.av0.de
+  resources:
+  - shortlinks/status
+  verbs:
+  - get
+  - patch
+  - update

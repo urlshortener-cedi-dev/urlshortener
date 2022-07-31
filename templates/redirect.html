@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>redirect</title>
+  <link rel="stylesheet" href="./R24 _ fckaf.de_files/style.min.css">
+
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="refresh" content="31; url=https://openfaas.cedi.dev/function/cows">
+</head>
+
+<body>
+  <section class="section">
+    <div class="container">
+      <div class="columns">
+        <div class="column is-8-desktop is-offset-2-desktop">
+          <div class="content has-text-centered">
+
+            <h1 class="title">
+              <a rel="nofollow" href="https://openfaas.cedi.dev/function/cows">
+                {{ .redirectFrom }}
+              </a>
+            </h1>
+
+            <div class="content">
+              <a rel="nofollow" href="https://openfaas.cedi.dev/function/cows">
+                <progress id="progress" class="progress is-link is-small" value="3000" max="3000">
+                  30 Sekunden
+                </progress>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+
+
+
+      <script>
+        (function () {
+          setTimeout(function () {
+            window.location.replace('https://openfaas.cedi.dev/function/cows');
+          }, 30000);
+        })();
+      </script>
+      <script>
+        (function (bar) {
+          if (!bar) { return; }
+          function decr() { bar.value--; }
+          (function (val) {
+            while (val--) { setTimeout(decr, 10 * val); }
+          })(bar.value);
+        })(document.getElementById('progress'));
+      </script>
+
+    </div>
+  </section>
+</body>
+
+</html>

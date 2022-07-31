@@ -1,0 +1,6 @@
+apiVersion: urlshortener.av0.de/v1alpha1
+kind: ShortLink
+metadata:
+  name: shortlink-sample
+spec:
+  # TODO(user): Add fields here

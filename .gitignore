@@ -1,4 +1,3 @@
-
 # Created by https://www.toptal.com/developers/gitignore/api/go,visualstudiocode,vim,helm
 # Edit at https://www.toptal.com/developers/gitignore?templates=go,visualstudiocode,vim,helm
 
@@ -87,3 +86,6 @@ tags
 
 # build directory
 build/
+template
+build
+bin
