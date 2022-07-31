@@ -35,6 +35,12 @@ spec:
           spec:
             description: ShortLinkSpec defines the desired state of ShortLink
             properties:
+              after:
+                default: 3
+                description: RedirectAfter specifies after how many seconds to redirect
+                  (Default=3)
+                format: int64
+                type: integer
               alias:
                 description: Alias is the short name (vanity name) of the shortening.
                   If omitted, a random alias will be choosen

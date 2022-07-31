@@ -30,6 +30,10 @@ type ShortLinkSpec struct {
 
 	// Target specifies the target to which we will redirect
 	Target string `json:"target,omitempty"`
+
+	// RedirectAfter specifies after how many seconds to redirect (Default=3)
+	// +kubebuilder:default:=3
+	RedirectAfter int64 `json:"after,omitempty"`
 }
 
 // ShortLinkStatus defines the observed state of ShortLink

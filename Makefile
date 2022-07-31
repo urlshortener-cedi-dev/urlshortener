@@ -64,6 +64,8 @@ endif
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
+CRD_OPTIONS ?= "crd:trivialVersions=true,crdVersions=v1"
+
 .PHONY: all
 all: build
 
