@@ -15,13 +15,11 @@ func NewGinGonicHTTPServer(setupLog *logr.Logger, bindAddr string) (*gin.Engine,
 	router := gin.New()
 	router.Use(otelgin.Middleware("urlshortener"))
 
-	router.LoadHTMLGlob("templates/*")
-
 	//load html file
-	router.LoadHTMLGlob("templates/*.html")
+	router.LoadHTMLGlob("html/templates/*.html")
 
 	//static path
-	//router.Static("/assets", "./assets")
+	router.Static("html/assets", "./assets")
 
 	setupLog.Info(fmt.Sprintf("Starting gin-tonic router on binAddr: '%s'", bindAddr))
 	srv := &http.Server{

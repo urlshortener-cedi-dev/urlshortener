@@ -39,7 +39,12 @@ type ShortLinkSpec struct {
 // ShortLinkStatus defines the observed state of ShortLink
 type ShortLinkStatus struct {
 	// Count represents the amount of time, this ShortLink has been called
+	// +kubebuilder:default:=0
 	Count int `json:"count,omitempty"`
+
+	// Ready indicates if the shortlink is ready to be consumed (all labels, etc. are set)
+	// +kubebuilder:default:=false
+	Ready bool `json:"ready,omitempty"`
 }
 
 //+kubebuilder:object:root=true

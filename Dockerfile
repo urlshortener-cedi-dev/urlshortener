@@ -16,15 +16,18 @@ COPY controllers/ controllers/
 COPY pkg/ pkg/
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux go build -a -o urlshortener main.go
+# TODO switch back to original
+#RUN CGO_ENABLED=0 GOOS=linux go build -a -o urlshortener main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o urlshortener main.go
 
 # Use distroless as minimal base image to package the urlshortener binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
+# TODO: For production re-enable distroless!
 #FROM gcr.io/distroless/static:nonroot
 FROM alpine:latest
 WORKDIR /
 COPY --from=builder /workspace/urlshortener .
-COPY templates/ templates/
+COPY html/ html/
 
 USER 65532:65532
 

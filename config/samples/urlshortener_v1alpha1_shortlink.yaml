@@ -3,4 +3,24 @@ kind: ShortLink
 metadata:
   name: shortlink-sample
 spec:
-  # TODO(user): Add fields here
+  alias: "foobar"
+  target: "https://openfaas.cedi.dev/function/cows"
+  after: 5
+---
+apiVersion: urlshortener.av0.de/v1alpha1
+kind: ShortLink
+metadata:
+  name: shortlink-sample2
+spec:
+  alias: "foobar2342"
+  target: "https://openfaas.cedi.dev/function/cows"
+  after: 5
+---
+apiVersion: urlshortener.av0.de/v1alpha1
+kind: ShortLink
+metadata:
+  name: shortlink-sample3
+spec:
+  alias: "foobar2342"
+  target: "https://openfaas.cedi.dev/function/cows"
+  after: 5

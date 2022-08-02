@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="./R24 _ fckaf.de_files/style.min.css">
 
   <meta name="referrer" content="no-referrer">
-  <meta http-equiv="refresh" content="31; url=https://openfaas.cedi.dev/function/cows">
+  <meta http-equiv="refresh" content="31; url={{ .redirectTo }}">
 </head>
 
 <body>
@@ -19,15 +19,16 @@
           <div class="content has-text-centered">
 
             <h1 class="title">
-              <a rel="nofollow" href="https://openfaas.cedi.dev/function/cows">
-                {{ .redirectFrom }}
+              <a rel="nofollow" href="{{ .redirectTo }}">
+                {{ .redirectTo }}
               </a>
             </h1>
 
             <div class="content">
-              <a rel="nofollow" href="https://openfaas.cedi.dev/function/cows">
-                <progress id="progress" class="progress is-link is-small" value="3000" max="3000">
-                  30 Sekunden
+              <a rel="nofollow" href="{{ .redirectTo }}">
+                <progress id="progress" class="progress is-link is-small" value="{{ .redirectAfter }}00"
+                  max="{{ .redirectAfter }}00">
+                  {{ .redirectAfter }} Seconds
                 </progress>
               </a>
             </div>
@@ -42,9 +43,9 @@
       <script>
         (function () {
           setTimeout(function () {
-            window.location.replace('https://openfaas.cedi.dev/function/cows');
-          }, 30000);
-        })();
+            window.location.replace('{{ .redirectTo }}');
+          }, {{ .redirectAfter }} * 1000);
+        }) ();
       </script>
       <script>
         (function (bar) {

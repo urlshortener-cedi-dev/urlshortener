@@ -53,9 +53,15 @@ spec:
             description: ShortLinkStatus defines the observed state of ShortLink
             properties:
               count:
+                default: 0
                 description: Count represents the amount of time, this ShortLink has
                   been called
                 type: integer
+              ready:
+                default: false
+                description: Ready indicates if the shortlink is ready to be consumed
+                  (all labels, etc. are set)
+                type: boolean
             type: object
         type: object
     served: true

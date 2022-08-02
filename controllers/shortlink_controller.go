@@ -18,19 +18,22 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	urlshortenerv1alpha1 "github.com/av0de/urlshortener/api/v1alpha1"
+	v1alpha1 "github.com/av0de/urlshortener/api/v1alpha1"
+	shortlinkclient "github.com/av0de/urlshortener/pkg/client"
+	"github.com/go-logr/logr"
 )
 
 // ShortLinkReconciler reconciles a ShortLink object
 type ShortLinkReconciler struct {
-	client.Client
+	*shortlinkclient.ShortlinkClient
 	Scheme *runtime.Scheme
+	Log    *logr.Logger
 }
 
 //+kubebuilder:rbac:groups=urlshortener.av0.de,resources=shortlinks,verbs=get;list;watch;create;update;patch;delete
@@ -47,9 +50,33 @@ type ShortLinkReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
 func (r *ShortLinkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	log := r.Log.WithName("reconciler").WithValues("shortlink", req.NamespacedName.String())
 
-	// TODO(user): your logic here
+	shortlink, err := r.GetNamespaced(ctx, req.Name, req.Namespace)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			log.Info("Shortlink resource not found. Ignoring since object must be deleted")
+			return ctrl.Result{}, nil
+		}
+
+		log.Error(err, "Failed to fetch resource")
+	}
+
+	log.Info(fmt.Sprintf("Reconciling Shortlink %s (labels=%v)", shortlink.ObjectMeta.Name, shortlink.ObjectMeta.Labels))
+
+	if shortlink.ObjectMeta.Labels == nil {
+		shortlink.ObjectMeta.Labels = make(map[string]string)
+	}
+
+	if value, ok := shortlink.ObjectMeta.Labels["shortlink"]; !ok || value != shortlink.Spec.Alias {
+		shortlink.ObjectMeta.Labels["shortlink"] = shortlink.Spec.Alias
+		shortlink.Status.Ready = true
+
+		if err := r.Save(ctx, shortlink); err != nil {
+			log.Error(err, "Failed to update ShortLink")
+			return ctrl.Result{}, err
+		}
+	}
 
 	return ctrl.Result{}, nil
 }
@@ -57,6 +84,6 @@ func (r *ShortLinkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 // SetupWithManager sets up the controller with the Manager.
 func (r *ShortLinkReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&urlshortenerv1alpha1.ShortLink{}).
+		For(&v1alpha1.ShortLink{}).
 		Complete(r)
 }

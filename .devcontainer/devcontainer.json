@@ -63,6 +63,9 @@
 		"terminal.integrated.defaultProfile.osx": "zsh",
 		"terminal.integrated.gpuAcceleration": "canvas",
 		"files.trimTrailingWhitespace": true,
+		"indentRainbow.includedLanguages": [
+			"yaml"
+		]
 	},
 	// Add the IDs of extensions you want installed when the container is created.
 	"extensions": [
@@ -81,7 +84,9 @@
 		"ms-kubernetes-tools.vscode-kubernetes-tools",
 		"lunuan.kubernetes-templates",
 		"ms-vscode.makefile-tools",
-		"hediet.vscode-drawio"
+		"hediet.vscode-drawio",
+		"oderwat.indent-rainbow",
+		"streetsidesoftware.code-spell-checker"
 	],
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [9000],

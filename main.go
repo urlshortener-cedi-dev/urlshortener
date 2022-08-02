@@ -37,9 +37,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	urlshortenerv1alpha1 "github.com/av0de/urlshortener/api/v1alpha1"
+	shortlinkclient "github.com/av0de/urlshortener/pkg/client"
 	urlshortenercontroller "github.com/av0de/urlshortener/pkg/controller"
 	urlshortenerrouter "github.com/av0de/urlshortener/pkg/router"
 	urlshortenertrace "github.com/av0de/urlshortener/pkg/tracing"
+	"github.com/go-logr/logr"
 
 	//+kubebuilder:scaffold:imports
 
@@ -49,8 +51,6 @@ import (
 var (
 	scheme         = runtime.NewScheme()
 	setupLog       = ctrl.Log.WithName("setup")
-	mainLog        = ctrl.Log
-	shotdownLog    = ctrl.Log.WithName("shutdown")
 	serviceName    = "github.com/av0de/urlshortener"
 	serviceVersion = "1.0.0"
 )
@@ -80,6 +80,18 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	shutdownLog := ctrl.Log.WithName("shutdown")
+
+	tracer, tp, err := urlshortenertrace.InitTracer(serviceName, serviceVersion)
+	if err != nil {
+		setupLog.Error(err, "failed initializing tracer")
+		os.Exit(1)
+	}
+	defer func() {
+		if err := tp.Shutdown(context.Background()); err != nil {
+			shutdownLog.Error(err, "Error shutting down tracer provider: %v")
+		}
+	}()
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                        scheme,
@@ -95,9 +107,16 @@ func main() {
 		os.Exit(1)
 	}
 
+	shortlinkClient := shortlinkclient.NewShortlinkClient(
+		mgr.GetClient(),
+		ctrl.Log,
+		tracer,
+	)
+
 	if err = (&controllers.ShortLinkReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		ShortlinkClient: shortlinkClient,
+		Scheme:          mgr.GetScheme(),
+		Log:             &ctrl.Log,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ShortLink")
 		os.Exit(1)
@@ -122,18 +141,7 @@ func main() {
 		}
 	}()
 
-	tracer, tp, err := urlshortenertrace.InitTracer(serviceName, serviceVersion)
-	if err != nil {
-		setupLog.Error(err, "failed initializing tracer")
-		os.Exit(1)
-	}
-	defer func() {
-		if err := tp.Shutdown(context.Background()); err != nil {
-			shotdownLog.Error(err, "Error shutting down tracer provider: %v")
-		}
-	}()
-
-	shortlinkController := urlshortenercontroller.NewShortlinkController(&mainLog, tracer)
+	shortlinkController := urlshortenercontroller.NewShortlinkController(&ctrl.Log, tracer, shortlinkClient)
 
 	// Init Gin Framework
 	router, srv := urlshortenerrouter.NewGinGonicHTTPServer(&setupLog, bindAddr)
@@ -141,7 +149,7 @@ func main() {
 	setupLog.Info("Load API routes")
 	urlshortenerrouter.Load(
 		router,
-		&mainLog,
+		&ctrl.Log,
 		tracer,
 		shortlinkController,
 	)
@@ -153,14 +161,14 @@ func main() {
 		}
 	}()
 
-	handleShutdown(srv)
+	handleShutdown(srv, &shutdownLog)
 
-	shotdownLog.Info("Server exiting")
+	shutdownLog.Info("Server exiting")
 }
 
 // handleShutdown waits for interupt signal and then tries to gracefully
 // shutdown the server with a timeout of 5 seconds.
-func handleShutdown(srv *http.Server) {
+func handleShutdown(srv *http.Server, shutdownLog *logr.Logger) {
 	quit := make(chan os.Signal, 1)
 
 	signal.Notify(
@@ -172,7 +180,7 @@ func handleShutdown(srv *http.Server) {
 
 	// wait (and block) until shutdown signal is received
 	<-quit
-	shotdownLog.Info("Shutting down server...")
+	shutdownLog.Info("Shutting down server...")
 
 	// The context is used to inform the server it has 5 seconds to finish
 	// the request it is currently handling
@@ -183,7 +191,7 @@ func handleShutdown(srv *http.Server) {
 	// then srv.Shutdown(ctx) will return an error, causing us to force
 	// the shutdown
 	if err := srv.Shutdown(ctx); err != nil {
-		shotdownLog.Error(err, "Server forced to shutdown")
+		shutdownLog.Error(err, "Server forced to shutdown")
 		os.Exit(1)
 	}
 }
