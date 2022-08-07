@@ -4,44 +4,54 @@
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>redirect</title>
-    <link rel="stylesheet" href="./assets/css/500.css">
-    <script src="./assets/js/500.js"></script>
+    <title>redirecting...</title>
+    <link rel="stylesheet" href="./assets/css/redirect.css">
 
     <meta name="referrer" content="no-referrer">
     <meta http-equiv="refresh" content="31; url={{ .redirectTo }}">
 </head>
 
 <body>
-    <div class="container">
-        <div class="box">
-            <div class="column is-8-desktop is-offset-2-desktop">
-                <div class="content has-text-centered">
-
-                    <h1 class="title">
-                        Hang Tight !
-                    </h1>
-
-                    <p>
-                        You're being redirected to another page. <br /> If you are not being redirect in {{
-                        .redirectAfter
-                        }} seconds, please click <a rel="nofollow" href="{{ .redirectTo }}">
-                            here
-                        </a>
-                    </p>
-
-                    <div class="content">
-                        <a rel="nofollow" href="{{ .redirectTo }}">
-                            <progress id="progress" class="progress is-link is-small" value="{{ .redirectAfter }}00"
-                                max="{{ .redirectAfter }}00">
-                                {{ .redirectAfter }} Seconds
-                            </progress>
-                        </a>
-                    </div>
-                </div>
-            </div>
+    <div class="card">
+        <div class="content">
+            <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                class="bi bi-arrow-90deg-right" viewBox="0 0 16 16">
+                <path fill-rule="evenodd"
+                    d="M14.854 4.854a.5.5 0 0 0 0-.708l-4-4a.5.5 0 0 0-.708.708L13.293 4H3.5A2.5 2.5 0 0 0 1 6.5v8a.5.5 0 0 0 1 0v-8A1.5 1.5 0 0 1 3.5 5h9.793l-3.147 3.146a.5.5 0 0 0 .708.708l4-4z">
+                </path>
+            </svg>
+            <h1>Hang Tight !</h1>
+            <p>You're being redirected to another page. If you are not being redirect in {{.redirectAfter}} seconds,
+                please click
+                <a rel="nofollow" href="{{ .redirectTo }}">here</a>
+            </p>
         </div>
+        <div class="progress"></div>
     </div>
+
+
+
+
+
+    <script>
+        (function () {
+            setTimeout(function () {
+                window.location.replace('{{ .redirectTo }}');
+            }, {{ .redirectAfter }} * 1000);
+        }) ();
+    </script>
+    <script>
+        (function (bar) {
+            if (!bar) { return; }
+            function decr() { bar.value--; }
+            (function (val) {
+                while (val--) { setTimeout(decr, 10 * val); }
+            })(bar.value);
+        })(document.getElementById('progress'));
+    </script>
+
+    </div>
+    </section>
 </body>
 
 </html>
