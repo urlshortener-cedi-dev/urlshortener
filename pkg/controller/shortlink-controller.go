@@ -35,6 +35,8 @@ func (s *ShortlinkController) HandleShortLink(c *gin.Context) {
 	ctx, span := s.tracer.Start(c.Request.Context(), "HandleShortLink", trace.WithAttributes(attribute.String("shortlink", shortlink)))
 	defer span.End()
 
+	span.AddEvent("redirect", trace.WithAttributes(attribute.String("shortlink", shortlink)))
+
 	shortlinks, err := s.client.Query(ctx, shortlink)
 	if err != nil || len(shortlinks.Items) > 1 {
 		if err != nil {

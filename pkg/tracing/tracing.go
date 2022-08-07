@@ -2,9 +2,10 @@ package tracing
 
 import (
 	"context"
-	"fmt"
 	"os"
 
+	"github.com/MrAlias/flow"
+	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
@@ -23,7 +24,7 @@ func InitTracer(serviceName, serviceVersion string) (trace.Tracer, *sdktrace.Tra
 
 	otlptracehttpExporter, err := otlptrace.New(context.TODO(), client)
 	if err != nil {
-		return nil, nil, fmt.Errorf("creating OTLP trace exporter: %w", err)
+		return nil, nil, errors.Wrap(err, "failed creating OTLP trace exporter")
 	}
 
 	hostname, err := os.Hostname()
@@ -39,8 +40,8 @@ func InitTracer(serviceName, serviceVersion string) (trace.Tracer, *sdktrace.Tra
 	)
 
 	tp := sdktrace.NewTracerProvider(
+		flow.WithBatcher(otlptracehttpExporter),
 		sdktrace.WithSampler(sdktrace.AlwaysSample()),
-		sdktrace.WithBatcher(otlptracehttpExporter),
 		sdktrace.WithResource(resources),
 	)
 
