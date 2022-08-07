@@ -19,7 +19,7 @@ func NewGinGonicHTTPServer(setupLog *logr.Logger, bindAddr string) (*gin.Engine,
 	router.LoadHTMLGlob("html/templates/*.html")
 
 	//static path
-	router.Static("html/assets", "./assets")
+	router.Static("assets", "./html/assets")
 
 	setupLog.Info(fmt.Sprintf("Starting gin-tonic router on binAddr: '%s'", bindAddr))
 	srv := &http.Server{
