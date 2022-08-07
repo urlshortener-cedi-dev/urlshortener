@@ -82,12 +82,6 @@ func (s *ShortlinkController) HandleShortLink(c *gin.Context) {
 		attribute.Int("InvocationCount", shortlinkObj.Status.Count),
 	)
 
-	// Save hit counter
-	err = s.client.SaveStatus(c.Request.Context(), &shortlinkObj)
-	if err != nil {
-		span.RecordError(err)
-	}
-
 	c.HTML(
 		// Set the HTTP status to 200 (OK)
 		http.StatusOK,
