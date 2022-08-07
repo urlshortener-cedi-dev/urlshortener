@@ -32,7 +32,7 @@ func (s *ShortlinkController) HandleShortLink(c *gin.Context) {
 	shortlink := c.Request.URL.Path[1:]
 
 	// Call the HTML method of the Context to render a template
-	ctx, span := s.tracer.Start(c.Request.Context(), "/:shortlink", trace.WithAttributes(attribute.String("shortlink", shortlink)))
+	ctx, span := s.tracer.Start(c.Request.Context(), "HandleShortLink", trace.WithAttributes(attribute.String("shortlink", shortlink)))
 	defer span.End()
 
 	shortlinks, err := s.client.Query(ctx, shortlink)
@@ -74,7 +74,7 @@ func (s *ShortlinkController) HandleShortLink(c *gin.Context) {
 	shortlinkObj := shortlinks.Items[0]
 
 	// Increase hit counter
-	s.client.IncrementInvocationCount(c.Request.Context(), &shortlinkObj)
+	s.client.IncrementInvocationCount(ctx, &shortlinkObj)
 
 	span.SetAttributes(
 		attribute.String("Target", shortlinkObj.Spec.Target),
