@@ -17,11 +17,11 @@ spec:
         loglevel: debug
 
       otlphttp:
-        endpoint: http://tempo-distributor.observability:4318/v1/traces
+        endpoint: http://tempo-distributor.observability:4318
 
     service:
       pipelines:
         traces:
           receivers: [otlp]
           processors: []
-          exporters: [logging]
+          exporters: [otlphttp]

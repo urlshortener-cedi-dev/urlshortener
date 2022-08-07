@@ -26,6 +26,8 @@ import (
 // ShortLinkSpec defines the desired state of ShortLink
 type ShortLinkSpec struct {
 	// Alias is the short name (vanity name) of the shortening. If omitted, a random alias will be choosen
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=15
 	Alias string `json:"alias,omitempty"`
 
 	// Target specifies the target to which we will redirect
@@ -38,19 +40,24 @@ type ShortLinkSpec struct {
 
 // ShortLinkStatus defines the observed state of ShortLink
 type ShortLinkStatus struct {
-	// Count represents the amount of time, this ShortLink has been called
+	// Count represents how often this ShortLink has been called
 	// +kubebuilder:default:=0
-	Count int `json:"count,omitempty"`
+	Count int `json:"count"`
 
 	// Ready indicates if the shortlink is ready to be consumed (all labels, etc. are set)
 	// +kubebuilder:default:=false
-	Ready bool `json:"ready,omitempty"`
+	Ready bool `json:"ready"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
-
 // ShortLink is the Schema for the shortlinks API
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Namespaced
+// +kubebuilder:printcolumn:name="Alias",type=string,JSONPath=`.spec.alias`
+// +kubebuilder:printcolumn:name="Target",type=string,JSONPath=`.spec.target`
+// +kubebuilder:printcolumn:name="After",type=string,JSONPath=`.spec.after`
+// +kubebuilder:printcolumn:name="Invoked",type=string,JSONPath=`.status.count`
+// +k8s:openapi-gen=true
 type ShortLink struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -59,9 +66,8 @@ type ShortLink struct {
 	Status ShortLinkStatus `json:"status,omitempty"`
 }
 
-//+kubebuilder:object:root=true
-
 // ShortLinkList contains a list of ShortLink
+//+kubebuilder:object:root=true
 type ShortLinkList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

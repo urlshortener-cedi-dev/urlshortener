@@ -36,24 +36,5 @@ func Load(
 	tracer trace.Tracer,
 	shortlinkController *urlshortenercontroller.ShortlinkController,
 ) {
-	group := router.Group("/")
-	group.GET("/", func(c *gin.Context) {
-		// Call the HTML method of the Context to render a template
-		log.WithName("controllers").WithName("Redirect").Info("Handling request for /")
-		_, span := tracer.Start(c.Request.Context(), "/")
-		defer span.End()
-
-		c.HTML(
-			// Set the HTTP status to 200 (OK)
-			http.StatusOK,
-			// Use the index.html template
-			"index.html",
-			// Pass the data that the page uses (in this case, 'title')
-			gin.H{
-				"title": "Home Page",
-			},
-		)
-	})
-
 	router.GET("/:shortlink", shortlinkController.HandleShortLink)
 }

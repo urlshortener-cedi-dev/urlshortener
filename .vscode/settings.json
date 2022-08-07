@@ -2,6 +2,7 @@
     "makefile.extensionOutputFolder": "./.vscode",
     "cSpell.words": [
         "kubebuilder",
+        "logr",
         "shortlink",
         "shortlinks"
     ]

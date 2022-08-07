@@ -15,7 +15,20 @@ spec:
     singular: shortlink
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.alias
+      name: Alias
+      type: string
+    - jsonPath: .spec.target
+      name: Target
+      type: string
+    - jsonPath: .spec.after
+      name: After
+      type: string
+    - jsonPath: .status.count
+      name: Invoked
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: ShortLink is the Schema for the shortlinks API
@@ -44,6 +57,8 @@ spec:
               alias:
                 description: Alias is the short name (vanity name) of the shortening.
                   If omitted, a random alias will be choosen
+                maxLength: 15
+                minLength: 1
                 type: string
               target:
                 description: Target specifies the target to which we will redirect
@@ -54,14 +69,16 @@ spec:
             properties:
               count:
                 default: 0
-                description: Count represents the amount of time, this ShortLink has
-                  been called
+                description: Count represents how often this ShortLink has been called
                 type: integer
               ready:
                 default: false
                 description: Ready indicates if the shortlink is ready to be consumed
                   (all labels, etc. are set)
                 type: boolean
+            required:
+            - count
+            - ready
             type: object
         type: object
     served: true

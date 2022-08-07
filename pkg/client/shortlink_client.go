@@ -106,7 +106,32 @@ func (c *ShortlinkClient) Save(ctx context.Context, shortlink *v1alpha1.ShortLin
 	defer span.End()
 
 	err := c.client.Update(ctx, shortlink)
+	if err != nil {
+		span.RecordError(err)
+	}
 
+	return err
+}
+
+func (c *ShortlinkClient) SaveStatus(ctx context.Context, shortlink *v1alpha1.ShortLink) error {
+	_, span := c.tracer.Start(ctx, "ShortlinkClient.SaveStatus", trace.WithAttributes(attribute.String("shortlink", shortlink.ObjectMeta.Name), attribute.String("namespace", shortlink.ObjectMeta.Namespace)))
+	defer span.End()
+
+	err := c.client.Status().Update(ctx, shortlink)
+	if err != nil {
+		span.RecordError(err)
+	}
+
+	return err
+}
+
+func (c *ShortlinkClient) IncrementInvocationCount(ctx context.Context, shortlink *v1alpha1.ShortLink) error {
+	_, span := c.tracer.Start(ctx, "ShortlinkClient.SaveStatus", trace.WithAttributes(attribute.String("shortlink", shortlink.ObjectMeta.Name), attribute.String("namespace", shortlink.ObjectMeta.Namespace)))
+	defer span.End()
+
+	shortlink.Status.Count = shortlink.Status.Count + 1
+
+	err := c.client.Status().Update(ctx, shortlink)
 	if err != nil {
 		span.RecordError(err)
 	}

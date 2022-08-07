@@ -8,6 +8,9 @@ spec:
     metadata:
       annotations:
         sidecar.opentelemetry.io/inject: "true"
+        kubectl.kubernetes.io/default-container: urlshortener
+      labels:
+        control-plane: urlshortener
     spec:
       containers:
         - name: urlshortener

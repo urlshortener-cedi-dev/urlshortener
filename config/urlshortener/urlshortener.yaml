@@ -37,7 +37,6 @@ spec:
         - command:
             - /urlshortener
           args:
-            - --leader-elect
             - --bind-address=:8443
           image: controller:latest
           imagePullPolicy: Always

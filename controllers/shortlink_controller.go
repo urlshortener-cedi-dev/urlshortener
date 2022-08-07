@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,9 +30,17 @@ import (
 
 // ShortLinkReconciler reconciles a ShortLink object
 type ShortLinkReconciler struct {
-	*shortlinkclient.ShortlinkClient
-	Scheme *runtime.Scheme
-	Log    *logr.Logger
+	client *shortlinkclient.ShortlinkClient
+	scheme *runtime.Scheme
+	log    *logr.Logger
+}
+
+func NewShortLinkReconciler(client *shortlinkclient.ShortlinkClient, scheme *runtime.Scheme, log *logr.Logger) *ShortLinkReconciler {
+	return &ShortLinkReconciler{
+		client: client,
+		scheme: scheme,
+		log:    log,
+	}
 }
 
 //+kubebuilder:rbac:groups=urlshortener.av0.de,resources=shortlinks,verbs=get;list;watch;create;update;patch;delete
@@ -50,9 +57,9 @@ type ShortLinkReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
 func (r *ShortLinkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := r.Log.WithName("reconciler").WithValues("shortlink", req.NamespacedName.String())
+	log := r.log.WithName("reconciler").WithValues("shortlink", req.NamespacedName.String())
 
-	shortlink, err := r.GetNamespaced(ctx, req.Name, req.Namespace)
+	shortlink, err := r.client.GetNamespaced(ctx, req.Name, req.Namespace)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			log.Info("Shortlink resource not found. Ignoring since object must be deleted")
@@ -62,18 +69,23 @@ func (r *ShortLinkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		log.Error(err, "Failed to fetch resource")
 	}
 
-	log.Info(fmt.Sprintf("Reconciling Shortlink %s (labels=%v)", shortlink.ObjectMeta.Name, shortlink.ObjectMeta.Labels))
-
 	if shortlink.ObjectMeta.Labels == nil {
 		shortlink.ObjectMeta.Labels = make(map[string]string)
 	}
 
-	if value, ok := shortlink.ObjectMeta.Labels["shortlink"]; !ok || value != shortlink.Spec.Alias {
+	labelValue, ok := shortlink.ObjectMeta.Labels["shortlink"]
+	if !ok || labelValue != shortlink.Spec.Alias || !shortlink.Status.Ready {
 		shortlink.ObjectMeta.Labels["shortlink"] = shortlink.Spec.Alias
+
+		if err := r.client.Save(ctx, shortlink); err != nil {
+			log.Error(err, "Failed to update ShortLink")
+			return ctrl.Result{}, err
+		}
+
 		shortlink.Status.Ready = true
 
-		if err := r.Save(ctx, shortlink); err != nil {
-			log.Error(err, "Failed to update ShortLink")
+		if err := r.client.SaveStatus(ctx, shortlink); err != nil {
+			log.Error(err, "Failed to update ShortLink status")
 			return ctrl.Result{}, err
 		}
 	}

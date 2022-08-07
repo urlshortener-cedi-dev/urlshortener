@@ -37,21 +37,19 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	urlshortenerv1alpha1 "github.com/av0de/urlshortener/api/v1alpha1"
+	"github.com/av0de/urlshortener/controllers"
 	shortlinkclient "github.com/av0de/urlshortener/pkg/client"
 	urlshortenercontroller "github.com/av0de/urlshortener/pkg/controller"
 	urlshortenerrouter "github.com/av0de/urlshortener/pkg/router"
 	urlshortenertrace "github.com/av0de/urlshortener/pkg/tracing"
 	"github.com/go-logr/logr"
-
 	//+kubebuilder:scaffold:imports
-
-	"github.com/av0de/urlshortener/controllers"
 )
 
 var (
 	scheme         = runtime.NewScheme()
 	setupLog       = ctrl.Log.WithName("setup")
-	serviceName    = "github.com/av0de/urlshortener"
+	serviceName    = "urlshortener"
 	serviceVersion = "1.0.0"
 )
 
@@ -64,17 +62,13 @@ func init() {
 
 func main() {
 	var metricsAddr string
-	var enableLeaderElection bool
 	var probeAddr string
 	var bindAddr string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.StringVar(&bindAddr, "bind-address", ":8443", "The address the service binds to.")
-	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
-		"Enable leader election for urlshortener. "+
-			"Enabling this will ensure there is only one active urlshortener.")
 	opts := zap.Options{
-		Development: true,
+		Development: false, // ToDo: Set to false to switch to JSON log format
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
@@ -98,7 +92,7 @@ func main() {
 		MetricsBindAddress:            metricsAddr,
 		Port:                          9443,
 		HealthProbeBindAddress:        probeAddr,
-		LeaderElection:                enableLeaderElection,
+		LeaderElection:                false,
 		LeaderElectionID:              "a9a252fc.av0.de",
 		LeaderElectionReleaseOnCancel: false,
 	})
@@ -113,11 +107,11 @@ func main() {
 		tracer,
 	)
 
-	if err = (&controllers.ShortLinkReconciler{
-		ShortlinkClient: shortlinkClient,
-		Scheme:          mgr.GetScheme(),
-		Log:             &ctrl.Log,
-	}).SetupWithManager(mgr); err != nil {
+	reconciler := controllers.NewShortLinkReconciler(shortlinkClient,
+		mgr.GetScheme(),
+		&ctrl.Log,
+	)
+	if err = reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ShortLink")
 		os.Exit(1)
 	}

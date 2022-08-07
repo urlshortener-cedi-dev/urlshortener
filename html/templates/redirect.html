@@ -5,10 +5,12 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>redirecting...</title>
+
     <link rel="stylesheet" href="./assets/css/redirect.css">
+    <script src="./assets/js/redirect.js"></script>
 
     <meta name="referrer" content="no-referrer">
-    <meta http-equiv="refresh" content="31; url={{ .redirectTo }}">
+    <!--<meta http-equiv="refresh" content="31; url={{ .redirectTo }}">-->
 </head>
 
 <body>
@@ -21,8 +23,9 @@
                 </path>
             </svg>
             <h1>Hang Tight !</h1>
-            <p>You're being redirected to another page. If you are not being redirect in {{.redirectAfter}} seconds,
-                please click
+            <p>You're being redirected to another page. If you are not being redirect in</p>
+            <p class="redirectAfter"> {{.redirectAfter}}</p>
+            <p>seconds, please click
                 <a rel="nofollow" href="{{ .redirectTo }}">here</a>
             </p>
         </div>
@@ -34,24 +37,9 @@
 
 
     <script>
-        (function () {
-            setTimeout(function () {
-                window.location.replace('{{ .redirectTo }}');
-            }, {{ .redirectAfter }} * 1000);
-        }) ();
+        decrement({{ .redirectAfter }});
+        redirect({{ .redirectAfter }}, {{ .redirectTo }});
     </script>
-    <script>
-        (function (bar) {
-            if (!bar) { return; }
-            function decr() { bar.value--; }
-            (function (val) {
-                while (val--) { setTimeout(decr, 10 * val); }
-            })(bar.value);
-        })(document.getElementById('progress'));
-    </script>
-
-    </div>
-    </section>
 </body>
 
 </html>
