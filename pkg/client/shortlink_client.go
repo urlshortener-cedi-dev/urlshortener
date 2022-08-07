@@ -102,13 +102,7 @@ func (c *ShortlinkClient) Query(ctx context.Context, label string) (*v1alpha1.Sh
 }
 
 func (c *ShortlinkClient) Save(ctx context.Context, shortlink *v1alpha1.ShortLink) error {
-	_, span := c.tracer.Start(
-		ctx, "ShortlinkClient.Save",
-		trace.WithAttributes(
-			attribute.String("shortlink", shortlink.ObjectMeta.Name),
-			attribute.String("namespace", shortlink.ObjectMeta.Namespace),
-		),
-	)
+	_, span := c.tracer.Start(ctx, "ShortlinkClient.Save", trace.WithAttributes(attribute.String("shortlink", shortlink.ObjectMeta.Name), attribute.String("namespace", shortlink.ObjectMeta.Namespace)))
 	defer span.End()
 
 	err := c.client.Update(ctx, shortlink)

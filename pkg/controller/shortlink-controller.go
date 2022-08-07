@@ -71,26 +71,35 @@ func (s *ShortlinkController) HandleShortLink(c *gin.Context) {
 		return
 	}
 
-	shortlinkObj := shortlinks.Items[0]
+	if len(shortlinks.Items) == 1 {
+		shortlinkObj := shortlinks.Items[0]
 
-	c.HTML(
-		// Set the HTTP status to 200 (OK)
-		http.StatusOK,
+		shortlinkObj.Status.Count++
 
-		// Use the index.html template
-		"redirect.html",
+		c.HTML(
+			// Set the HTTP status to 200 (OK)
+			http.StatusOK,
 
-		// Pass the data that the page uses (in this case, 'title')
-		gin.H{
-			"redirectFrom":  c.Request.URL.Path,
-			"redirectTo":    shortlinkObj.Spec.Target,
-			"redirectAfter": shortlinkObj.Spec.RedirectAfter,
-		},
-	)
+			// Use the index.html template
+			"redirect.html",
 
-	shortlinkObj.Status.Count++
-	err = s.client.Save(c.Request.Context(), &shortlinkObj)
-	if err != nil {
-		span.RecordError(err)
+			// Pass the data that the page uses (in this case, 'title')
+			gin.H{
+				"redirectFrom":  c.Request.URL.Path,
+				"redirectTo":    shortlinkObj.Spec.Target,
+				"redirectAfter": shortlinkObj.Spec.RedirectAfter,
+			},
+		)
+
+		span.SetAttributes(
+			attribute.String("Target", shortlinkObj.Spec.Target),
+			attribute.Int64("RedirectAfter", shortlinkObj.Spec.RedirectAfter),
+			attribute.Int("InvocationCount", shortlinkObj.Status.Count),
+		)
+
+		err = s.client.Save(c.Request.Context(), &shortlinkObj)
+		if err != nil {
+			span.RecordError(err)
+		}
 	}
 }
