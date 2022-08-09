@@ -110,6 +110,7 @@ func main() {
 	reconciler := controllers.NewShortLinkReconciler(shortlinkClient,
 		mgr.GetScheme(),
 		&ctrl.Log,
+		tracer,
 	)
 	if err = reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ShortLink")

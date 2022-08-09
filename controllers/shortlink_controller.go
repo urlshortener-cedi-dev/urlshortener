@@ -19,6 +19,8 @@ package controllers
 import (
 	"context"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -26,20 +28,34 @@ import (
 	v1alpha1 "github.com/av0de/urlshortener/api/v1alpha1"
 	shortlinkclient "github.com/av0de/urlshortener/pkg/client"
 	"github.com/go-logr/logr"
+	"github.com/prometheus/client_golang/prometheus"
 )
+
+var activeRedirects = prometheus.NewGauge(
+	prometheus.GaugeOpts{
+		Name: "urlshortener_active_redirects",
+		Help: "Number of redirects installed for this urlshortener instance",
+	},
+)
+
+func init() {
+	prometheus.MustRegister(activeRedirects)
+}
 
 // ShortLinkReconciler reconciles a ShortLink object
 type ShortLinkReconciler struct {
 	client *shortlinkclient.ShortlinkClient
 	scheme *runtime.Scheme
 	log    *logr.Logger
+	tracer trace.Tracer
 }
 
-func NewShortLinkReconciler(client *shortlinkclient.ShortlinkClient, scheme *runtime.Scheme, log *logr.Logger) *ShortLinkReconciler {
+func NewShortLinkReconciler(client *shortlinkclient.ShortlinkClient, scheme *runtime.Scheme, log *logr.Logger, tracer trace.Tracer) *ShortLinkReconciler {
 	return &ShortLinkReconciler{
 		client: client,
 		scheme: scheme,
 		log:    log,
+		tracer: tracer,
 	}
 }
 
@@ -56,12 +72,16 @@ func NewShortLinkReconciler(client *shortlinkclient.ShortlinkClient, scheme *run
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
-func (r *ShortLinkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+func (r *ShortLinkReconciler) Reconcile(c context.Context, req ctrl.Request) (ctrl.Result, error) {
+	ctx, span := r.tracer.Start(c, "ShortLinkReconciler.Reconcile", trace.WithAttributes(attribute.String("shortlink", req.Name)))
+	defer span.End()
+
 	log := r.log.WithName("reconciler").WithValues("shortlink", req.NamespacedName.String())
 
 	shortlink, err := r.client.GetNamespaced(ctx, req.Name, req.Namespace)
 	if err != nil {
 		if errors.IsNotFound(err) {
+			activeRedirects.Dec()
 			log.Info("Shortlink resource not found. Ignoring since object must be deleted")
 			return ctrl.Result{}, nil
 		}
@@ -88,6 +108,10 @@ func (r *ShortLinkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			log.Error(err, "Failed to update ShortLink status")
 			return ctrl.Result{}, err
 		}
+	}
+
+	if shortlinkList, err := r.client.List(ctx); shortlinkList != nil && err == nil {
+		activeRedirects.Set(float64(len(shortlinkList.Items)))
 	}
 
 	return ctrl.Result{}, nil
