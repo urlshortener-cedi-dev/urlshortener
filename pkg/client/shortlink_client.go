@@ -7,27 +7,13 @@ import (
 	"github.com/av0de/urlshortener/api/v1alpha1"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
-	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
-
-var redirectInvocations = prometheus.NewCounterVec(
-	prometheus.CounterOpts{
-		Name: "urlshortener_shortlink_invocation",
-		Help: "Counts of how often a shortlink was invoked",
-	},
-	[]string{"name", "namespace", "alias"},
-)
-
-func init() {
-	metrics.Registry.MustRegister(redirectInvocations)
-}
 
 // ShortlinkClient is a Kubernetes client for easy CRUD operations
 type ShortlinkClient struct {
@@ -158,12 +144,6 @@ func (c *ShortlinkClient) IncrementInvocationCount(ct context.Context, shortlink
 	defer span.End()
 
 	shortlink.Status.Count = shortlink.Status.Count + 1
-
-	redirectInvocations.WithLabelValues(
-		shortlink.ObjectMeta.Name,
-		shortlink.ObjectMeta.Namespace,
-		shortlink.Spec.Alias,
-	).Inc()
 
 	err := c.client.Status().Update(ctx, shortlink)
 	if err != nil {

@@ -39,8 +39,16 @@ var activeRedirects = prometheus.NewGauge(
 	},
 )
 
+var redirectInvocations = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "urlshortener_shortlink_invocation",
+		Help: "Counts of how often a shortlink was invoked",
+	},
+	[]string{"name", "namespace", "alias"},
+)
+
 func init() {
-	metrics.Registry.MustRegister(activeRedirects)
+	metrics.Registry.MustRegister(activeRedirects, redirectInvocations)
 }
 
 // ShortLinkReconciler reconciles a ShortLink object
@@ -113,6 +121,14 @@ func (r *ShortLinkReconciler) Reconcile(c context.Context, req ctrl.Request) (ct
 
 	if shortlinkList, err := r.client.List(ctx); shortlinkList != nil && err == nil {
 		activeRedirects.Set(float64(len(shortlinkList.Items)))
+
+		for _, shortlink := range shortlinkList.Items {
+			redirectInvocations.WithLabelValues(
+				shortlink.ObjectMeta.Name,
+				shortlink.ObjectMeta.Namespace,
+				shortlink.Spec.Alias,
+			).Set(float64(shortlink.Status.Count))
+		}
 	}
 
 	return ctrl.Result{}, nil
