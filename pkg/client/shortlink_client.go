@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 var redirectInvocations = prometheus.NewCounterVec(
@@ -25,7 +26,7 @@ var redirectInvocations = prometheus.NewCounterVec(
 )
 
 func init() {
-	prometheus.MustRegister(redirectInvocations)
+	metrics.Registry.MustRegister(redirectInvocations)
 }
 
 // ShortlinkClient is a Kubernetes client for easy CRUD operations

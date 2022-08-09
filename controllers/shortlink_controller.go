@@ -29,6 +29,7 @@ import (
 	shortlinkclient "github.com/av0de/urlshortener/pkg/client"
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 var activeRedirects = prometheus.NewGauge(
@@ -39,7 +40,7 @@ var activeRedirects = prometheus.NewGauge(
 )
 
 func init() {
-	prometheus.MustRegister(activeRedirects)
+	metrics.Registry.MustRegister(activeRedirects)
 }
 
 // ShortLinkReconciler reconciles a ShortLink object
