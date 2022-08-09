@@ -22,7 +22,18 @@ spec:
     - secretName: short-cedi-dev-tls
       hosts:
         - short.cedi.dev
+        - ccl.pw
   rules:
+    - host: ccl.pw
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: urlshortener
+                port:
+                  number: 8123
     - host: short.cedi.dev
       http:
         paths:
