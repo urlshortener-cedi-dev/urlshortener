@@ -78,7 +78,7 @@ func (r *ShortLinkReconciler) Reconcile(c context.Context, req ctrl.Request) (ct
 
 	log := r.log.WithName("reconciler").WithValues("shortlink", req.NamespacedName.String())
 
-	shortlink, err := r.client.GetNamespaced(ctx, req.Name, req.Namespace)
+	shortlink, err := r.client.GetNamespaced(ctx, req.NamespacedName)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			activeRedirects.Dec()
