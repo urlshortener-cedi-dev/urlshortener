@@ -36,13 +36,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	"github.com/gin-gonic/gin"
+	"github.com/go-logr/logr"
+
 	urlshortenerv1alpha1 "github.com/av0de/urlshortener/api/v1alpha1"
 	"github.com/av0de/urlshortener/controllers"
 	shortlinkclient "github.com/av0de/urlshortener/pkg/client"
 	urlshortenercontroller "github.com/av0de/urlshortener/pkg/controller"
 	urlshortenerrouter "github.com/av0de/urlshortener/pkg/router"
 	urlshortenertrace "github.com/av0de/urlshortener/pkg/tracing"
-	"github.com/go-logr/logr"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -76,14 +78,15 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 	shutdownLog := ctrl.Log.WithName("shutdown")
 
-	tracer, tp, err := urlshortenertrace.InitTracer(serviceName, serviceVersion)
+	o11y, err := urlshortenertrace.NewShortlinkObservability(serviceName, serviceVersion, ctrl.Log)
 	if err != nil {
-		setupLog.Error(err, "failed initializing tracer")
+		setupLog.Error(err, "failed initializing observability")
 		os.Exit(1)
 	}
+
 	defer func() {
-		if err := tp.Shutdown(context.Background()); err != nil {
-			shutdownLog.Error(err, "Error shutting down tracer provider: %v")
+		if err := o11y.ShutdownTraceProvider(context.Background()); err != nil {
+			shutdownLog.Error(err, "Error shutting down tracer provider")
 		}
 	}()
 
@@ -103,17 +106,31 @@ func main() {
 
 	shortlinkClient := shortlinkclient.NewShortlinkClient(
 		mgr.GetClient(),
-		ctrl.Log,
-		tracer,
+		o11y,
 	)
 
-	reconciler := controllers.NewShortLinkReconciler(shortlinkClient,
-		mgr.GetScheme(),
-		&ctrl.Log,
-		tracer,
+	redirectClient := shortlinkclient.NewRedirectClient(
+		mgr.GetClient(),
+		o11y,
 	)
-	if err = reconciler.SetupWithManager(mgr); err != nil {
+
+	shortlinkReconciler := controllers.NewShortLinkReconciler(
+		shortlinkClient,
+		mgr.GetScheme(),
+		o11y,
+	)
+	if err = shortlinkReconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ShortLink")
+		os.Exit(1)
+	}
+	redirectReconciler := controllers.NewRedirectReconciler(
+		mgr.GetClient(),
+		redirectClient,
+		mgr.GetScheme(),
+		o11y,
+	)
+	if err = redirectReconciler.SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Redirect")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
@@ -136,18 +153,14 @@ func main() {
 		}
 	}()
 
-	shortlinkController := urlshortenercontroller.NewShortlinkController(&ctrl.Log, tracer, shortlinkClient)
+	shortlinkController := urlshortenercontroller.NewShortlinkController(o11y, shortlinkClient)
 
 	// Init Gin Framework
+	gin.SetMode(gin.ReleaseMode)
 	router, srv := urlshortenerrouter.NewGinGonicHTTPServer(&setupLog, bindAddr)
 
 	setupLog.Info("Load API routes")
-	urlshortenerrouter.Load(
-		router,
-		&ctrl.Log,
-		tracer,
-		shortlinkController,
-	)
+	urlshortenerrouter.Load(router, shortlinkController)
 
 	// run our gin server mgr in a separate go routine
 	go func() {
