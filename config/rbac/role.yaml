@@ -6,6 +6,52 @@ metadata:
   name: urlshortener-role
 rules:
 - apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - urlshortener.av0.de
+  resources:
+  - redirects
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - urlshortener.av0.de
+  resources:
+  - redirects/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - urlshortener.av0.de
+  resources:
+  - redirects/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
   - urlshortener.av0.de
   resources:
   - shortlinks

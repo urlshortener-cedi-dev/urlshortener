@@ -1,0 +1,8 @@
+apiVersion: urlshortener.av0.de/v1alpha1
+kind: Redirect
+metadata:
+  name: redirect-to-shortlink
+spec:
+  source: dev.ccl.pw
+  target: short.av0.de
+  code: 308

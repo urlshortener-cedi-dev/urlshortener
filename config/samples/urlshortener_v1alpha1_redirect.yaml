@@ -1,0 +1,6 @@
+apiVersion: urlshortener.av0.de/v1alpha1
+kind: Redirect
+metadata:
+  name: redirect-sample
+spec:
+  # TODO(user): Add fields here

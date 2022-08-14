@@ -16,4 +16,13 @@ resources:
   kind: ShortLink
   path: github.com/av0de/urlshortener/api/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: av0.de
+  group: urlshortener
+  kind: Redirect
+  path: github.com/av0de/urlshortener/api/v1alpha1
+  version: v1alpha1
 version: "3"

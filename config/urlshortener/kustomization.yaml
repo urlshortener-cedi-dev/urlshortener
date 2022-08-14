@@ -14,7 +14,7 @@ configMapGenerator:
 images:
 - name: controller
   newName: ghcr.io/av0de/urlshortener
-  newTag: main
+  newTag: develop
 - name: urlshortener
   newName: ghcr.io/av0de/urlshortener
   newTag: develop
