@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-logr/logr"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
-	"go.opentelemetry.io/otel/trace"
 )
 
 func NewGinGonicHTTPServer(setupLog *logr.Logger, bindAddr string) (*gin.Engine, *http.Server) {
@@ -30,11 +29,6 @@ func NewGinGonicHTTPServer(setupLog *logr.Logger, bindAddr string) (*gin.Engine,
 	return router, srv
 }
 
-func Load(
-	router *gin.Engine,
-	log *logr.Logger,
-	tracer trace.Tracer,
-	shortlinkController *urlshortenercontroller.ShortlinkController,
-) {
+func Load(router *gin.Engine, shortlinkController *urlshortenercontroller.ShortlinkController) {
 	router.GET("/:shortlink", shortlinkController.HandleShortLink)
 }

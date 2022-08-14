@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	shortlinkclient "github.com/av0de/urlshortener/pkg/client"
+	urlshortenertrace "github.com/av0de/urlshortener/pkg/tracing"
 	"github.com/gin-gonic/gin"
-	"github.com/go-logr/logr"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -14,15 +14,13 @@ import (
 const ContentTypeApplicationJSON = "application/json"
 
 type ShortlinkController struct {
-	log    *logr.Logger
-	tracer trace.Tracer
+	o11y   *urlshortenertrace.ShortlinkObservability
 	client *shortlinkclient.ShortlinkClient
 }
 
-func NewShortlinkController(log *logr.Logger, tracer trace.Tracer, client *shortlinkclient.ShortlinkClient) *ShortlinkController {
+func NewShortlinkController(o11y *urlshortenertrace.ShortlinkObservability, client *shortlinkclient.ShortlinkClient) *ShortlinkController {
 	return &ShortlinkController{
-		log:    log,
-		tracer: tracer,
+		o11y:   o11y,
 		client: client,
 	}
 
@@ -32,7 +30,7 @@ func (s *ShortlinkController) HandleShortLink(c *gin.Context) {
 	shortlink := c.Request.URL.Path[1:]
 
 	// Call the HTML method of the Context to render a template
-	ctx, span := s.tracer.Start(c.Request.Context(), "HandleShortLink", trace.WithAttributes(attribute.String("shortlink", shortlink)))
+	ctx, span := s.o11y.Trace.Start(c.Request.Context(), "HandleShortLink", trace.WithAttributes(attribute.String("shortlink", shortlink)))
 	defer span.End()
 
 	span.AddEvent("redirect", trace.WithAttributes(attribute.String("shortlink", shortlink)))
