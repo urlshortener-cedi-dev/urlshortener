@@ -177,7 +177,6 @@ func (r *RedirectReconciler) Reconcile(c context.Context, req ctrl.Request) (ctr
 
 	// Update status.Nodes if needed
 	if !reflect.DeepEqual(ingressNames, redirect.Status.IngressName) {
-		log.Info("Update Redirect status Ingress name(s)")
 		redirect.Status.IngressName = ingressNames
 		err := r.client.Status().Update(ctx, redirect)
 		if err != nil {
