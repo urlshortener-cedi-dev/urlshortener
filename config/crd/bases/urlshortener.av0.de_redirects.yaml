@@ -59,6 +59,10 @@ spec:
                 - 307
                 - 308
                 type: integer
+              ingressClassName:
+                default: nginx
+                description: IngressClassName makes it possible to override the ingress-class
+                type: string
               source:
                 description: Source is the source URL from which the redirection happens
                 type: string
@@ -66,6 +70,19 @@ spec:
                 description: Target is the destination URL to which the redirection
                   happen
                 type: string
+              tls:
+                default:
+                  enable: false
+                description: TLS configure if you want to enable TLS
+                properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  enable:
+                    default: false
+                    type: boolean
+                type: object
             required:
             - source
             - target

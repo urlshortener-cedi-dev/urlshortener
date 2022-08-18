@@ -37,6 +37,21 @@ type RedirectSpec struct {
 	// +kubebuilder:validation:Enum=300;301;302;303;304;305;307;308
 	// +kubebuilder:default:=308
 	Code int `json:"code,omitempty"`
+
+	// TLS configure if you want to enable TLS
+	// +kubebuilder:default:={enable: false}
+	TLS TLSSpec `json:"tls,omitempty"`
+
+	// IngressClassName makes it possible to override the ingress-class
+	// +kubebuilder:default:=nginx
+	IngressClassName string `json:"ingressClassName,omitempty"`
+}
+
+// TLSSpec holds the TLS configuration used
+type TLSSpec struct {
+	// +kubebuilder:default:=false
+	Enable      bool              `json:"enable,omitempty"`
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 // RedirectStatus defines the observed state of Redirect
@@ -45,14 +60,13 @@ type RedirectStatus struct {
 	IngressName []string `json:"ingressNames,omitempty"`
 }
 
+// Redirect is the Schema for the redirects API
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Namespaced
 // +kubebuilder:printcolumn:name="Source",type=string,JSONPath=`.spec.source`
 // +kubebuilder:printcolumn:name="Target",type=string,JSONPath=`.spec.target`
 // +kubebuilder:printcolumn:name="Code",type=string,JSONPath=`.spec.code`
-
-// Redirect is the Schema for the redirects API
 type Redirect struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

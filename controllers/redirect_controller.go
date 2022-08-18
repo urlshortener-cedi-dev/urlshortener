@@ -18,25 +18,21 @@ package controllers
 
 import (
 	"context"
-	"fmt"
-	"net/http"
-	"reflect"
-	"strings"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	networkingv1 "k8s.io/api/networking/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	urlshortenerv1alpha1 "github.com/av0de/urlshortener/api/v1alpha1"
-	v1alpha1 "github.com/av0de/urlshortener/api/v1alpha1"
 	redirectclient "github.com/av0de/urlshortener/pkg/client"
+	redirectpkg "github.com/av0de/urlshortener/pkg/redirect"
 	urlshortenertrace "github.com/av0de/urlshortener/pkg/tracing"
+	"github.com/pkg/errors"
 )
 
 // RedirectReconciler reconciles a Redirect object
@@ -79,7 +75,7 @@ func (r *RedirectReconciler) Reconcile(c context.Context, req ctrl.Request) (ctr
 	// fetch redirect object
 	redirect, err := r.rClient.GetNamespaced(ctx, req.NamespacedName)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if k8serrors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
@@ -93,73 +89,9 @@ func (r *RedirectReconciler) Reconcile(c context.Context, req ctrl.Request) (ctr
 	}
 
 	// Check if the ingress already exists, if not create a new one
-	found := &networkingv1.Ingress{}
-	err = r.client.Get(ctx, types.NamespacedName{Name: redirect.Name, Namespace: redirect.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
-		// Define a new ingress
-		ing := r.ingressForRedirect(redirect)
-		log.Info("Creating a new Ingress", "Ingress.Namespace", ing.Namespace, "Ingress.Name", ing.Name)
-		err = r.client.Create(ctx, ing)
-		if err != nil {
-			log = log.WithValues("Ingress.Namespace", ing.Namespace, "Ingress.Name", ing.Name)
-			urlshortenertrace.RecordError(span, &log, err, "Failed to create new Ingress")
-
-			return ctrl.Result{}, err
-		}
-		// Ingress created successfully - return and requeue
-		return ctrl.Result{Requeue: true}, nil
-	} else if err != nil {
-		urlshortenertrace.RecordError(span, &log, err, "Failed to fetch get redirect Ingress")
-		return ctrl.Result{}, err
-	}
-
-	log = log.WithValues("Ingress.Namespace", found.Namespace, "Ingress.Name", found.Name)
-
-	// Ensure the target is correct
-	newTarget := fmt.Sprintf("http://%s$request_uri", redirect.Spec.Target)
-	if val, ok := found.ObjectMeta.Annotations["nginx.ingress.kubernetes.io/permanent-redirect"]; ok && val != newTarget {
-		oldTarget := found.ObjectMeta.Annotations["nginx.ingress.kubernetes.io/permanent-redirect"]
-		log.Info("Update Ingress redirection target", "oldTarget", oldTarget, "newTarget", newTarget)
-
-		found.ObjectMeta.Annotations["nginx.ingress.kubernetes.io/permanent-redirect"] = newTarget
-		err = r.client.Update(ctx, found)
-		if err != nil {
-			urlshortenertrace.RecordError(span, &log, err, "Failed to update Ingress redirection target")
-			return ctrl.Result{}, err
-		}
-		// Spec updated - return and requeue
-		return ctrl.Result{Requeue: true}, nil
-	}
-
-	// Ensure the source is correct
-	newHost := redirect.Spec.Source
-	if len(found.Spec.Rules) == 1 && found.Spec.Rules[0].Host != newHost {
-
-		found.Spec.Rules[0].Host = newHost
-		err = r.client.Update(ctx, found)
-		if err != nil {
-			urlshortenertrace.RecordError(span, &log, err, "Failed to update source for redirect ingress")
-			return ctrl.Result{}, err
-		}
-		// Spec updated - return and requeue
-		return ctrl.Result{Requeue: true}, nil
-	}
-
-	// Ensure the redirect code is correct
-	if val, ok := found.ObjectMeta.Annotations["nginx.ingress.kubernetes.io/permanent-redirect-code"]; ok && val != fmt.Sprintf("%d", redirect.Spec.Code) {
-		oldCode := found.ObjectMeta.Annotations["nginx.ingress.kubernetes.io/permanent-redirect-code"]
-		newCode := fmt.Sprintf("%d", redirect.Spec.Code)
-
-		log.Info("Update Ingress redirection code", "oldCode", oldCode, "newCode", newCode)
-
-		found.ObjectMeta.Annotations["nginx.ingress.kubernetes.io/permanent-redirect-code"] = newCode
-		err = r.client.Update(ctx, found)
-		if err != nil {
-			urlshortenertrace.RecordError(span, &log, err, "Failed to update Ingress redirection code")
-			return ctrl.Result{}, err
-		}
-		// Spec updated - return and requeue
-		return ctrl.Result{Requeue: true}, nil
+	ingress, err := r.upsertRedirectIngress(ctx, redirect)
+	if err != nil {
+		urlshortenertrace.RecordError(span, &log, err, "Failed to upsert redirect ingress")
 	}
 
 	// Update the Redirect status with the ingress name and the target
@@ -167,115 +99,47 @@ func (r *RedirectReconciler) Reconcile(c context.Context, req ctrl.Request) (ctr
 	ingressList := &networkingv1.IngressList{}
 	listOpts := []client.ListOption{
 		client.InNamespace(redirect.Namespace),
-		client.MatchingLabels(labelsForRedirect(redirect.Name)),
+		client.MatchingLabels(redirectpkg.GetLabelsForRedirect(redirect.Name)),
 	}
+
 	if err = r.client.List(ctx, ingressList, listOpts...); err != nil {
 		urlshortenertrace.RecordError(span, &log, err, "Failed to list ingresses")
 		return ctrl.Result{}, err
 	}
-	ingressNames := getIngressNames(ingressList.Items)
 
 	// Update status.Nodes if needed
-	if !reflect.DeepEqual(ingressNames, redirect.Status.IngressName) {
-		redirect.Status.IngressName = ingressNames
-		err := r.client.Status().Update(ctx, redirect)
-		if err != nil {
-			urlshortenertrace.RecordError(span, &log, err, "Failed to update Redirect status Ingress name(s)")
-			return ctrl.Result{}, err
-		}
-	}
-
-	redirect.Status.Target = found.ObjectMeta.Annotations["nginx.ingress.kubernetes.io/permanent-redirect"]
+	redirect.Status.IngressName = redirectpkg.GetIngressNames(ingressList.Items)
+	redirect.Status.Target = ingress.ObjectMeta.Annotations["nginx.ingress.kubernetes.io/permanent-redirect"]
 	err = r.client.Status().Update(ctx, redirect)
 	if err != nil {
-		urlshortenertrace.RecordError(span, &log, err, "Failed to update Redirect status Ingress redirect target")
+		urlshortenertrace.RecordError(span, &log, err, "Failed to update Redirect status")
 		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
 }
 
-func (r *RedirectReconciler) ingressForRedirect(redirect *v1alpha1.Redirect) *networkingv1.Ingress {
-	pathTypePrefix := networkingv1.PathTypePrefix
+func (r *RedirectReconciler) upsertRedirectIngress(ctx context.Context, redirect *urlshortenerv1alpha1.Redirect) (*networkingv1.Ingress, error) {
+	ingress := &networkingv1.Ingress{}
+	err := r.client.Get(ctx, types.NamespacedName{Name: redirect.Name, Namespace: redirect.Namespace}, ingress)
+	ingress = redirectpkg.NewRedirectIngress(ingress, redirect)
 
-	// Only a selected list of HTTP Codes is allowed for redirection
-	switch redirect.Spec.Code {
-	case http.StatusMultipleChoices:
-	case http.StatusMovedPermanently:
-	case http.StatusFound:
-	case http.StatusSeeOther:
-	case http.StatusNotModified:
-	case http.StatusUseProxy:
-	case http.StatusTemporaryRedirect:
-	case http.StatusPermanentRedirect:
-		break
-
-	// If none of the cases above are hit (allow-list) default to HTTP 308
-	default:
-		redirect.Spec.Code = http.StatusPermanentRedirect
-	}
-
-	ing := &networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      redirect.Name,
-			Namespace: redirect.Namespace,
-			Labels:    labelsForRedirect(redirect.Name),
-			Annotations: map[string]string{
-				"cert-manager.io/cluster-issuer":                      "letsencrypt-prod",
-				"nginx.ingress.kubernetes.io/rewrite-target":          "/",
-				"nginx.ingress.kubernetes.io/permanent-redirect":      fmt.Sprintf("http://%s$request_uri", redirect.Spec.Target),
-				"nginx.ingress.kubernetes.io/permanent-redirect-code": fmt.Sprintf("%d", redirect.Spec.Code),
-			},
-		},
-		Spec: networkingv1.IngressSpec{
-			Rules: []networkingv1.IngressRule{
-				{
-					Host: redirect.Spec.Source,
-					IngressRuleValue: networkingv1.IngressRuleValue{
-						HTTP: &networkingv1.HTTPIngressRuleValue{
-							Paths: []networkingv1.HTTPIngressPath{
-								{
-									Path:     "/",
-									PathType: &pathTypePrefix,
-									Backend: networkingv1.IngressBackend{
-										Service: &networkingv1.IngressServiceBackend{
-											Name: "http-svc",
-											Port: networkingv1.ServiceBackendPort{
-												Number: 80,
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			TLS: []networkingv1.IngressTLS{
-				{
-					Hosts:      []string{redirect.Spec.Source},
-					SecretName: fmt.Sprintf("%s-redirect-secret", strings.ReplaceAll(redirect.Spec.Source, ".", "-")),
-				},
-			},
-		},
-	}
 	// Set Redirect instance as the owner and controller
-	ctrl.SetControllerReference(redirect, ing, r.scheme)
-	return ing
-}
+	ctrl.SetControllerReference(redirect, ingress, r.scheme)
 
-// labelsForRedirect returns the labels for selecting the resources
-// belonging to the given redirect CR name.
-func labelsForRedirect(name string) map[string]string {
-	return map[string]string{"app": "redirect", "redirect_cr": name}
-}
-
-func getIngressNames(ingresses []networkingv1.Ingress) []string {
-	var ingressNames []string
-	for _, ingress := range ingresses {
-		ingressNames = append(ingressNames, ingress.Name)
+	if err != nil && k8serrors.IsNotFound(err) {
+		if err := r.client.Create(ctx, ingress); err != nil {
+			return nil, errors.Wrap(err, "Failed to create new Ingress")
+		}
+	} else if err != nil {
+		return nil, errors.Wrap(err, "Failed to get redirect Ingress")
 	}
-	return ingressNames
+
+	if err := r.client.Update(ctx, ingress); err != nil {
+		return nil, errors.Wrap(err, "Failed to update redirect Ingress")
+	}
+
+	return ingress, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.

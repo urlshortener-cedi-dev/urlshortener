@@ -22,7 +22,7 @@ import (
 
 // ShortLinkSpec defines the desired state of ShortLink
 type ShortLinkSpec struct {
-	// Alias is the short name (vanity name) of the shortening. If omitted, a random alias will be choosen
+	// Alias is the short name (vanity name) of the shortening. If omitted, a random alias will be chosen
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=15
