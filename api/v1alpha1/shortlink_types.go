@@ -20,21 +20,23 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // ShortLinkSpec defines the desired state of ShortLink
 type ShortLinkSpec struct {
 	// Alias is the short name (vanity name) of the shortening. If omitted, a random alias will be choosen
+	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=15
-	Alias string `json:"alias,omitempty"`
+	Alias string `json:"alias"`
 
 	// Target specifies the target to which we will redirect
-	Target string `json:"target,omitempty"`
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	Target string `json:"target"`
 
 	// RedirectAfter specifies after how many seconds to redirect (Default=3)
 	// +kubebuilder:default:=3
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=99
 	RedirectAfter int64 `json:"after,omitempty"`
 }
 
@@ -42,11 +44,12 @@ type ShortLinkSpec struct {
 type ShortLinkStatus struct {
 	// Count represents how often this ShortLink has been called
 	// +kubebuilder:default:=0
+	// +kubebuilder:validation:Minimum=0
 	Count int `json:"count"`
 
 	// Ready indicates if the shortlink is ready to be consumed (all labels, etc. are set)
 	// +kubebuilder:default:=false
-	Ready bool `json:"ready"`
+	Ready bool `json:"ready,omitempty"`
 }
 
 // ShortLink is the Schema for the shortlinks API

@@ -15,7 +15,17 @@ spec:
     singular: redirect
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.source
+      name: Source
+      type: string
+    - jsonPath: .spec.target
+      name: Target
+      type: string
+    - jsonPath: .spec.code
+      name: Code
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Redirect is the Schema for the redirects API
@@ -36,8 +46,18 @@ spec:
             description: RedirectSpec defines the desired state of Redirect
             properties:
               code:
+                default: 308
                 description: Code is the URL Code used for the redirection. Default
                   308
+                enum:
+                - 300
+                - 301
+                - 302
+                - 303
+                - 304
+                - 305
+                - 307
+                - 308
                 type: integer
               source:
                 description: Source is the source URL from which the redirection happens
@@ -46,6 +66,9 @@ spec:
                 description: Target is the destination URL to which the redirection
                   happen
                 type: string
+            required:
+            - source
+            - target
             type: object
           status:
             description: RedirectStatus defines the observed state of Redirect

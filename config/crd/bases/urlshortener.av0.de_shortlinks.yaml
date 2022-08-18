@@ -53,6 +53,8 @@ spec:
                 description: RedirectAfter specifies after how many seconds to redirect
                   (Default=3)
                 format: int64
+                maximum: 99
+                minimum: 0
                 type: integer
               alias:
                 description: Alias is the short name (vanity name) of the shortening.
@@ -62,7 +64,11 @@ spec:
                 type: string
               target:
                 description: Target specifies the target to which we will redirect
+                minLength: 1
                 type: string
+            required:
+            - alias
+            - target
             type: object
           status:
             description: ShortLinkStatus defines the observed state of ShortLink
@@ -70,6 +76,7 @@ spec:
               count:
                 default: 0
                 description: Count represents how often this ShortLink has been called
+                minimum: 0
                 type: integer
               ready:
                 default: false
@@ -78,7 +85,6 @@ spec:
                 type: boolean
             required:
             - count
-            - ready
             type: object
         type: object
     served: true

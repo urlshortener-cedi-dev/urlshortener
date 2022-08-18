@@ -26,12 +26,16 @@ type RedirectSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Source is the source URL from which the redirection happens
-	Source string `json:"source,omitempty"`
+	// +kubebuilder:validation:Required
+	Source string `json:"source"`
 
 	// Target is the destination URL to which the redirection happen
-	Target string `json:"target,omitempty"`
+	// +kubebuilder:validation:Required
+	Target string `json:"target"`
 
 	// Code is the URL Code used for the redirection. Default 308
+	// +kubebuilder:validation:Enum=300;301;302;303;304;305;307;308
+	// +kubebuilder:default:=308
 	Code int `json:"code,omitempty"`
 }
 
@@ -43,6 +47,10 @@ type RedirectStatus struct {
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Namespaced
+// +kubebuilder:printcolumn:name="Source",type=string,JSONPath=`.spec.source`
+// +kubebuilder:printcolumn:name="Target",type=string,JSONPath=`.spec.target`
+// +kubebuilder:printcolumn:name="Code",type=string,JSONPath=`.spec.code`
 
 // Redirect is the Schema for the redirects API
 type Redirect struct {
