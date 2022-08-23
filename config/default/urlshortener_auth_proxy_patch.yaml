@@ -42,7 +42,7 @@ spec:
         - name: urlshortener
           args:
             - "--health-probe-bind-address=:8081"
-            - "--metrics-bind-address=127.0.0.1:9110"
+            - "--metrics-bind-address=:9110"
             - --bind-address=:8123
           ports:
             - containerPort: 8123

@@ -70,7 +70,7 @@ type ShortLink struct {
 }
 
 // ShortLinkList contains a list of ShortLink
-//+kubebuilder:object:root=true
+// +kubebuilder:object:root=true
 type ShortLinkList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`

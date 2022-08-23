@@ -3,13 +3,14 @@ kind: Service
 metadata:
   labels:
     control-plane: urlshortener
+    app: urlshortener
   name: urlshortener-metrics-service
   namespace: system
 spec:
   ports:
-    - name: https
-      port: 8443
+    - name: metrics
+      port: 9110
       protocol: TCP
-      targetPort: https
+      targetPort: 9110
   selector:
     control-plane: urlshortener

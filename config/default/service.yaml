@@ -21,20 +21,10 @@ spec:
   tls:
     - secretName: short-cedi-dev-tls
       hosts:
-        #- short.cedi.dev
-        - short.av0.de
+        - short.cedi.dev
+        #- short.av0.de
   rules:
-    - host: short.av0.de
-      http:
-        paths:
-          - path: /
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: urlshortener
-                port:
-                  number: 8123
-    #- host: short.cedi.dev
+    #- host: short.av0.de
     #  http:
     #    paths:
     #      - path: /
@@ -44,3 +34,13 @@ spec:
     #            name: urlshortener
     #            port:
     #              number: 8123
+    - host: short.cedi.dev
+      http:
+        paths:
+          - path: /
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: urlshortener
+                port:
+                  number: 8123

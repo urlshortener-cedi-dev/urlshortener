@@ -4,6 +4,7 @@
         "Gonic",
         "kubebuilder",
         "logr",
+        "otelgin",
         "shortlink",
         "shortlinks"
     ]

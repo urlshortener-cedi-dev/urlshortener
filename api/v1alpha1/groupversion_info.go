@@ -15,8 +15,8 @@ limitations under the License.
 */
 
 // Package v1alpha1 contains API Schema definitions for the urlshortener v1alpha1 API group
-//+kubebuilder:object:generate=true
-//+groupName=urlshortener.av0.de
+// +kubebuilder:object:generate=true
+// +groupName=urlshortener.av0.de
 package v1alpha1
 
 import (

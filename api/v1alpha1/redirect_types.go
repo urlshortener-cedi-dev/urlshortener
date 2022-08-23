@@ -61,8 +61,8 @@ type RedirectStatus struct {
 }
 
 // Redirect is the Schema for the redirects API
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Namespaced
 // +kubebuilder:printcolumn:name="Source",type=string,JSONPath=`.spec.source`
 // +kubebuilder:printcolumn:name="Target",type=string,JSONPath=`.spec.target`

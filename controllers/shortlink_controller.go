@@ -103,6 +103,7 @@ func (r *ShortLinkReconciler) Reconcile(c context.Context, req ctrl.Request) (ct
 		shortlink.ObjectMeta.Labels["shortlink"] = shortlink.Spec.Alias
 
 		if err := r.client.Save(ctx, shortlink); err != nil {
+			// error here!
 			urlshortenertrace.RecordError(span, &log, err, "Failed to update ShortLink")
 			return ctrl.Result{}, err
 		}
@@ -126,6 +127,8 @@ func (r *ShortLinkReconciler) Reconcile(c context.Context, req ctrl.Request) (ct
 			).Set(float64(shortlink.Status.Count))
 		}
 	}
+
+	urlshortenertrace.RecordInfo(span, &log, "Successfully processed shortlink %s", shortlink.ObjectMeta.Name)
 
 	return ctrl.Result{}, nil
 }
