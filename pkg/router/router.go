@@ -18,12 +18,11 @@ func NewGinGonicHTTPServer(setupLog *logr.Logger, bindAddr string) (*gin.Engine,
 		secure.Secure(secure.Options{
 			SSLRedirect:           true,
 			SSLProxyHeaders:       map[string]string{"X-Forwarded-Proto": "https"},
-			STSSeconds:            315360000,
 			STSIncludeSubdomains:  true,
 			FrameDeny:             true,
 			ContentTypeNosniff:    true,
 			BrowserXssFilter:      true,
-			ContentSecurityPolicy: "default-src 'self'",
+			ContentSecurityPolicy: "default-src 'self' data: 'unsafe-inline'",
 		}),
 	)
 
