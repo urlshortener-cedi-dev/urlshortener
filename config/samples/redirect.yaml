@@ -1,11 +1,25 @@
 apiVersion: urlshortener.av0.de/v1alpha1
 kind: Redirect
 metadata:
-  name: redirect-to-shortlink
+  name: redirect-to-shortlink-prod
 spec:
   source: ccl.pw
   target: short.cedi.dev
-  code: 308
+  code: 307
+  tls:
+    enable: true
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+
+---
+apiVersion: urlshortener.av0.de/v1alpha1
+kind: Redirect
+metadata:
+  name: redirect-to-shortlink-dev
+spec:
+  source: dev.ccl.pw
+  target: short.av0.de
+  code: 307
   tls:
     enable: true
     annotations:
