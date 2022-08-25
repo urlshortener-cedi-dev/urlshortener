@@ -237,7 +237,15 @@ catalog-build: opm ## Build a catalog image.
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
-# Restart the deployment
-.PHONY: Restart
+# restart the deployment
+.PHONY: restart
 restart:
 	kubectl rollout restart deployment -n urlshortener urlshortener
+
+
+.PHONY: update-gomod
+update-gomod:
+	go get -u .
+
+.PHONY: full
+full: manifests generate docker-build docker-push deploy restart
