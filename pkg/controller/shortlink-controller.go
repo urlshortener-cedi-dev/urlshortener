@@ -30,7 +30,7 @@ func (s *ShortlinkController) HandleShortLink(c *gin.Context) {
 	shortlink := c.Request.URL.Path[1:]
 
 	// Call the HTML method of the Context to render a template
-	ctx, span := s.o11y.Trace.Start(c.Request.Context(), "HandleShortLink", trace.WithAttributes(attribute.String("shortlink", shortlink)))
+	ctx, span := s.o11y.Trace.Start(c.Request.Context(), "ShortlinkController.HandleShortLink", trace.WithAttributes(attribute.String("shortlink", shortlink)))
 	defer span.End()
 
 	span.AddEvent("shortlink", trace.WithAttributes(attribute.String("shortlink", shortlink)))
@@ -82,18 +82,25 @@ func (s *ShortlinkController) HandleShortLink(c *gin.Context) {
 		attribute.Int("InvocationCount", shortlinkObj.Status.Count),
 	)
 
-	c.HTML(
-		// Set the HTTP status to 200 (OK)
-		http.StatusOK,
+	if shortlinkObj.Spec.Code == 200 {
+		c.HTML(
+			// Set the HTTP status to 200 (OK)
+			http.StatusOK,
 
-		// Use the index.html template
-		"redirect.html",
+			// Use the index.html template
+			"redirect.html",
 
-		// Pass the data that the page uses (in this case, 'title')
-		gin.H{
-			"redirectFrom":  c.Request.URL.Path,
-			"redirectTo":    shortlinkObj.Spec.Target,
-			"redirectAfter": shortlinkObj.Spec.RedirectAfter,
-		},
-	)
+			// Pass the data that the page uses (in this case, 'title')
+			gin.H{
+				"redirectFrom":  c.Request.URL.Path,
+				"redirectTo":    shortlinkObj.Spec.Target,
+				"redirectAfter": shortlinkObj.Spec.RedirectAfter,
+			},
+		)
+	} else {
+		c.Redirect(
+			shortlinkObj.Spec.Code,
+			shortlinkObj.Spec.Target,
+		)
+	}
 }

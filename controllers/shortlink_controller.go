@@ -21,15 +21,17 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	v1alpha1 "github.com/av0de/urlshortener/api/v1alpha1"
 	shortlinkclient "github.com/av0de/urlshortener/pkg/client"
 	urlshortenertrace "github.com/av0de/urlshortener/pkg/tracing"
+
 	"github.com/prometheus/client_golang/prometheus"
-	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 var activeRedirects = prometheus.NewGauge(
@@ -82,6 +84,7 @@ func (r *ShortLinkReconciler) Reconcile(c context.Context, req ctrl.Request) (ct
 
 	log := r.o11y.Log.WithName("reconciler").WithValues("shortlink", req.NamespacedName.String())
 
+	// Get ShortLink from etcd
 	shortlink, err := r.client.GetNamespaced(ctx, req.NamespacedName)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -127,8 +130,6 @@ func (r *ShortLinkReconciler) Reconcile(c context.Context, req ctrl.Request) (ct
 			).Set(float64(shortlink.Status.Count))
 		}
 	}
-
-	urlshortenertrace.RecordInfo(span, &log, "Successfully processed shortlink %s", shortlink.ObjectMeta.Name)
 
 	return ctrl.Result{}, nil
 }

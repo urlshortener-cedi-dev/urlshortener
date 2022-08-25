@@ -22,6 +22,9 @@ spec:
     - jsonPath: .spec.target
       name: Target
       type: string
+    - jsonPath: .spec.code
+      name: Code
+      type: string
     - jsonPath: .spec.after
       name: After
       type: string
@@ -62,6 +65,22 @@ spec:
                 maxLength: 15
                 minLength: 1
                 type: string
+              code:
+                default: 200
+                description: Code is the URL Code used for the redirection. leave
+                  on default (200) when using the HTML behavior. However, if you whish
+                  to use a HTTP 3xx redirect, set to the appropriate 3xx status code
+                enum:
+                - 200
+                - 300
+                - 301
+                - 302
+                - 303
+                - 304
+                - 305
+                - 307
+                - 308
+                type: integer
               target:
                 description: Target specifies the target to which we will redirect
                 minLength: 1

@@ -24,7 +24,7 @@ func NewRedirectIngress(ing *networkingv1.Ingress, redirect *v1alpha1.Redirect) 
 		Labels:    GetLabelsForRedirect(redirect.Name),
 		Annotations: map[string]string{
 			"nginx.ingress.kubernetes.io/rewrite-target":          "/",
-			"nginx.ingress.kubernetes.io/permanent-redirect":      fmt.Sprintf("http://%s$request_uri", redirect.Spec.Target),
+			"nginx.ingress.kubernetes.io/permanent-redirect":      fmt.Sprintf("%s$request_uri", redirect.Spec.Target),
 			"nginx.ingress.kubernetes.io/permanent-redirect-code": fmt.Sprintf("%d", redirect.Spec.Code),
 		},
 	}

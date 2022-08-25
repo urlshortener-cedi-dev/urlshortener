@@ -38,6 +38,12 @@ type ShortLinkSpec struct {
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=99
 	RedirectAfter int64 `json:"after,omitempty"`
+
+	// Code is the URL Code used for the redirection.
+	// leave on default (200) when using the HTML behavior. However, if you whish to use a HTTP 3xx redirect, set to the appropriate 3xx status code
+	// +kubebuilder:validation:Enum=200;300;301;302;303;304;305;307;308
+	// +kubebuilder:default:=200
+	Code int `json:"code,omitempty"`
 }
 
 // ShortLinkStatus defines the observed state of ShortLink
@@ -58,6 +64,7 @@ type ShortLinkStatus struct {
 // +kubebuilder:resource:scope=Namespaced
 // +kubebuilder:printcolumn:name="Alias",type=string,JSONPath=`.spec.alias`
 // +kubebuilder:printcolumn:name="Target",type=string,JSONPath=`.spec.target`
+// +kubebuilder:printcolumn:name="Code",type=string,JSONPath=`.spec.code`
 // +kubebuilder:printcolumn:name="After",type=string,JSONPath=`.spec.after`
 // +kubebuilder:printcolumn:name="Invoked",type=string,JSONPath=`.status.count`
 // +k8s:openapi-gen=true

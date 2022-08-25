@@ -72,7 +72,7 @@ func (r *RedirectReconciler) Reconcile(c context.Context, req ctrl.Request) (ctr
 
 	log := r.o11y.Log.WithName("reconciler").WithValues("redirect", req.NamespacedName)
 
-	// fetch redirect object
+	// get Redirect from etcd
 	redirect, err := r.rClient.GetNamespaced(ctx, req.NamespacedName)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
