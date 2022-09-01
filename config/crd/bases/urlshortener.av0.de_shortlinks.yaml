@@ -60,8 +60,6 @@ spec:
                 minimum: 0
                 type: integer
               alias:
-                description: Alias is the short name (vanity name) of the shortening.
-                  If omitted, a random alias will be chosen
                 maxLength: 15
                 minLength: 1
                 type: string

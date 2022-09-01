@@ -21,6 +21,7 @@ resources:
   - ./service.yaml
   - ./otelcollector.yaml
   - ./ingress_av0de.yaml
+  #- ./ingress_cedidev.yaml
 # [WEBHOOK] To enable webhook, uncomment all the sections with [WEBHOOK] prefix including the one in
 # crd/kustomization.yaml
 #- ../webhook

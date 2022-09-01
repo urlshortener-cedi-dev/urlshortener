@@ -4,11 +4,17 @@ import (
 	"fmt"
 	"net/http"
 
+	docs "github.com/av0de/urlshortener/docs"
 	urlshortenercontroller "github.com/av0de/urlshortener/pkg/controller"
+
 	"github.com/gin-gonic/contrib/secure"
 	"github.com/gin-gonic/gin"
+
 	"github.com/go-logr/logr"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
+
+	swaggerfiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 func NewGinGonicHTTPServer(setupLog *logr.Logger, bindAddr string) (*gin.Engine, *http.Server) {
@@ -38,9 +44,22 @@ func NewGinGonicHTTPServer(setupLog *logr.Logger, bindAddr string) (*gin.Engine,
 		Handler: router,
 	}
 
+	docs.SwaggerInfo.BasePath = "/"
+
 	return router, srv
 }
 
+// @BasePath /
 func Load(router *gin.Engine, shortlinkController *urlshortenercontroller.ShortlinkController) {
 	router.GET("/:shortlink", shortlinkController.HandleShortLink)
+
+	v1 := router.Group("/api/v1")
+	{
+		v1.GET("/shortlink/", shortlinkController.HandleListShortLink)
+		v1.GET("/shortlink/:shortlink", shortlinkController.HandleListShortLink)
+		v1.POST("/shortlink/:shortlink", shortlinkController.HandleCreateShortLink)
+		v1.PUT("/shortlink/:shortlink", shortlinkController.HandleUpdateShortLink)
+		v1.DELETE("/shortlink/:shortlink", shortlinkController.HandleDeleteShortLink)
+	}
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 }

@@ -1,4 +1,256 @@
+definitions:
+  v1alpha1.ShortLinkSpec:
+    properties:
+      after:
+        description: |-
+          RedirectAfter specifies after how many seconds to redirect (Default=3)
+          +kubebuilder:default:=3
+          +kubebuilder:validation:Minimum=0
+          +kubebuilder:validation:Maximum=99
+        type: integer
+      code:
+        description: |-
+          Code is the URL Code used for the redirection.
+          leave on default (200) when using the HTML behavior. However, if you whish to use a HTTP 3xx redirect, set to the appropriate 3xx status code
+          +kubebuilder:validation:Enum=200;300;301;302;303;304;305;307;308
+          +kubebuilder:default:=200
+        enum:
+        - 200
+        - 300
+        - 301
+        - 302
+        - 303
+        - 304
+        - 305
+        - 307
+        - 308
+        type: integer
+      target:
+        description: |-
+          Target specifies the target to which we will redirect
+          +kubebuilder:validation:Required
+          +kubebuilder:validation:MinLength=1
+        type: string
+    type: object
 info:
   contact: {}
-paths: {}
+paths:
+  /{shortlink}:
+    get:
+      description: redirect to target as per configuration of the shortlink
+      parameters:
+      - description: shortlink id
+        in: path
+        name: shortlink
+        required: true
+        type: string
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: Success
+          schema:
+            type: integer
+        "300":
+          description: MultipleChoices
+          schema:
+            type: integer
+        "301":
+          description: MovedPermanently
+          schema:
+            type: integer
+        "302":
+          description: Found
+          schema:
+            type: integer
+        "303":
+          description: SeeOther
+          schema:
+            type: integer
+        "304":
+          description: NotModified
+          schema:
+            type: integer
+        "305":
+          description: UseProxy
+          schema:
+            type: integer
+        "307":
+          description: TemporaryRedirect
+          schema:
+            type: integer
+        "308":
+          description: PermanentRedirect
+          schema:
+            type: integer
+        "404":
+          description: NotFound
+          schema:
+            type: integer
+        "500":
+          description: InternalServerError
+          schema:
+            type: integer
+      summary: redirect to target
+  /api/v1/shortlink:
+    get:
+      description: get a shorlink
+      parameters:
+      - description: the shortlink URL part (shortlink id)
+        example: home
+        in: path
+        name: shortlink
+        type: string
+      produces:
+      - text/plain
+      - application/json
+      responses:
+        "200":
+          description: Success
+          schema:
+            type: integer
+        "404":
+          description: NotFound
+          schema:
+            type: integer
+        "500":
+          description: InternalServerError
+          schema:
+            type: integer
+      summary: get a shortlink
+  /api/v1/shortlink/{shortlink}:
+    delete:
+      description: delete shorlink
+      parameters:
+      - description: the shortlink URL part (shortlink id)
+        example: home
+        in: path
+        name: shortlink
+        required: true
+        type: string
+      produces:
+      - text/plain
+      - application/json
+      responses:
+        "200":
+          description: Success
+          schema:
+            type: integer
+        "404":
+          description: NotFound
+          schema:
+            type: integer
+        "500":
+          description: InternalServerError
+          schema:
+            type: integer
+      summary: delete shortlink
+    get:
+      description: get a shorlink
+      parameters:
+      - description: the shortlink URL part (shortlink id)
+        example: home
+        in: path
+        name: shortlink
+        type: string
+      produces:
+      - text/plain
+      - application/json
+      responses:
+        "200":
+          description: Success
+          schema:
+            type: integer
+        "404":
+          description: NotFound
+          schema:
+            type: integer
+        "500":
+          description: InternalServerError
+          schema:
+            type: integer
+      summary: get a shortlink
+    post:
+      consumes:
+      - application/json
+      description: create a new shorlink
+      parameters:
+      - description: the shortlink URL part (shortlink id)
+        example: home
+        in: path
+        name: shortlink
+        type: string
+      - description: shortlink spec
+        in: body
+        name: spec
+        required: true
+        schema:
+          $ref: '#/definitions/v1alpha1.ShortLinkSpec'
+      produces:
+      - text/plain
+      - application/json
+      responses:
+        "200":
+          description: Success
+          schema:
+            type: integer
+        "301":
+          description: MovedPermanently
+          schema:
+            type: integer
+        "302":
+          description: Found
+          schema:
+            type: integer
+        "307":
+          description: TemporaryRedirect
+          schema:
+            type: integer
+        "308":
+          description: PermanentRedirect
+          schema:
+            type: integer
+        "404":
+          description: NotFound
+          schema:
+            type: integer
+        "500":
+          description: InternalServerError
+          schema:
+            type: integer
+      summary: create new shortlink
+    put:
+      consumes:
+      - application/json
+      description: update a new shorlink
+      parameters:
+      - description: the shortlink URL part (shortlink id)
+        example: home
+        in: path
+        name: shortlink
+        required: true
+        type: string
+      - description: shortlink spec
+        in: body
+        name: spec
+        required: true
+        schema:
+          $ref: '#/definitions/v1alpha1.ShortLinkSpec'
+      produces:
+      - text/plain
+      - application/json
+      responses:
+        "200":
+          description: Success
+          schema:
+            type: integer
+        "404":
+          description: NotFound
+          schema:
+            type: integer
+        "500":
+          description: InternalServerError
+          schema:
+            type: integer
+      summary: update existing shortlink
 swagger: "2.0"

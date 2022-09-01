@@ -105,21 +105,21 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: test
-test: manifests generate fmt vet envtest ## Run tests.
+test: manifests generate fmt vet envtest swag ## Run tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) -p path)" go test ./... -coverprofile cover.out
 
 ##@ Build
 
 .PHONY: build
-build: generate fmt vet ## Build urlshortener binary.
+build: generate fmt vet swag ## Build urlshortener binary.
 	go build -o bin/urlshortener main.go
 
 .PHONY: run
-run: manifests generate fmt vet ## Run a controller from your host.
+run: manifests generate fmt vet swag ## Run a controller from your host.
 	go run ./main.go
 
 .PHONY: docker-build
-docker-build: test ## Build docker image with the urlshortener.
+docker-build: test swag ## Build docker image with the urlshortener.
 	docker build -t ${IMG} .
 
 .PHONY: docker-push
@@ -246,6 +246,10 @@ restart:
 .PHONY: update-gomod
 update-gomod:
 	go get -u .
+
+.PHONE: swag
+swag:
+	swag init
 
 .PHONY: full
 full: manifests generate docker-build docker-push deploy restart

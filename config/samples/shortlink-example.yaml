@@ -6,3 +6,31 @@ spec:
   alias: "cedi"
   target: "https://cedi.dev"
   after: 99
+---
+apiVersion: urlshortener.av0.de/v1alpha1
+kind: ShortLink
+metadata:
+  name: swagger-api
+spec:
+  alias: "swag"
+  target: "https://short.av0.de/swagger/index.html#/"
+  after: 99
+---
+apiVersion: urlshortener.av0.de/v1alpha1
+kind: ShortLink
+metadata:
+  name: duplicate1
+spec:
+  alias: "foo"
+  target: "https://cedi.dev"
+  after: 99
+
+---
+apiVersion: urlshortener.av0.de/v1alpha1
+kind: ShortLink
+metadata:
+  name: duplicate2
+spec:
+  alias: "foo"
+  target: "https://cedi.dev"
+  after: 99

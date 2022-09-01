@@ -22,11 +22,11 @@ import (
 
 // ShortLinkSpec defines the desired state of ShortLink
 type ShortLinkSpec struct {
-	// Alias is the short name (vanity name) of the shortening. If omitted, a random alias will be chosen
+
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:MaxLength=15
-	Alias string `json:"alias"`
+	Alias string `json:"alias" swaggerignore:"true"`
 
 	// Target specifies the target to which we will redirect
 	// +kubebuilder:validation:Required
@@ -43,7 +43,7 @@ type ShortLinkSpec struct {
 	// leave on default (200) when using the HTML behavior. However, if you whish to use a HTTP 3xx redirect, set to the appropriate 3xx status code
 	// +kubebuilder:validation:Enum=200;300;301;302;303;304;305;307;308
 	// +kubebuilder:default:=200
-	Code int `json:"code,omitempty"`
+	Code int `json:"code,omitempty" enums:"200,300,301,302,303,304,305,307,308"`
 }
 
 // ShortLinkStatus defines the observed state of ShortLink
