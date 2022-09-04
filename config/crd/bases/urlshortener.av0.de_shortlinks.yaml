@@ -16,9 +16,6 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.alias
-      name: Alias
-      type: string
     - jsonPath: .spec.target
       name: Target
       type: string
@@ -59,10 +56,6 @@ spec:
                 maximum: 99
                 minimum: 0
                 type: integer
-              alias:
-                maxLength: 15
-                minLength: 1
-                type: string
               code:
                 default: 200
                 description: Code is the URL Code used for the redirection. leave
@@ -84,7 +77,6 @@ spec:
                 minLength: 1
                 type: string
             required:
-            - alias
             - target
             type: object
           status:
@@ -95,11 +87,6 @@ spec:
                 description: Count represents how often this ShortLink has been called
                 minimum: 0
                 type: integer
-              ready:
-                default: false
-                description: Ready indicates if the shortlink is ready to be consumed
-                  (all labels, etc. are set)
-                type: boolean
             required:
             - count
             type: object

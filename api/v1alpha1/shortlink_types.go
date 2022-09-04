@@ -22,12 +22,6 @@ import (
 
 // ShortLinkSpec defines the desired state of ShortLink
 type ShortLinkSpec struct {
-
-	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:MaxLength=15
-	Alias string `json:"alias" swaggerignore:"true"`
-
 	// Target specifies the target to which we will redirect
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
@@ -52,17 +46,12 @@ type ShortLinkStatus struct {
 	// +kubebuilder:default:=0
 	// +kubebuilder:validation:Minimum=0
 	Count int `json:"count"`
-
-	// Ready indicates if the shortlink is ready to be consumed (all labels, etc. are set)
-	// +kubebuilder:default:=false
-	Ready bool `json:"ready,omitempty"`
 }
 
 // ShortLink is the Schema for the shortlinks API
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Namespaced
-// +kubebuilder:printcolumn:name="Alias",type=string,JSONPath=`.spec.alias`
 // +kubebuilder:printcolumn:name="Target",type=string,JSONPath=`.spec.target`
 // +kubebuilder:printcolumn:name="Code",type=string,JSONPath=`.spec.code`
 // +kubebuilder:printcolumn:name="After",type=string,JSONPath=`.spec.after`

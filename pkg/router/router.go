@@ -56,7 +56,7 @@ func Load(router *gin.Engine, shortlinkController *urlshortenercontroller.Shortl
 	v1 := router.Group("/api/v1")
 	{
 		v1.GET("/shortlink/", shortlinkController.HandleListShortLink)
-		v1.GET("/shortlink/:shortlink", shortlinkController.HandleListShortLink)
+		v1.GET("/shortlink/:shortlink", shortlinkController.HandleGetShortLink)
 		v1.POST("/shortlink/:shortlink", shortlinkController.HandleCreateShortLink)
 		v1.PUT("/shortlink/:shortlink", shortlinkController.HandleUpdateShortLink)
 		v1.DELETE("/shortlink/:shortlink", shortlinkController.HandleDeleteShortLink)

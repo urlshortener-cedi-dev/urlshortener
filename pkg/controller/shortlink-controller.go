@@ -1,25 +1,31 @@
-package api
+package controller
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"strings"
 
+	"github.com/av0de/urlshortener/api/v1alpha1"
 	_ "github.com/av0de/urlshortener/api/v1alpha1"
 	shortlinkclient "github.com/av0de/urlshortener/pkg/client"
+	"github.com/av0de/urlshortener/pkg/tracing"
 	urlshortenertrace "github.com/av0de/urlshortener/pkg/tracing"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
-const ContentTypeApplicationJSON = "application/json"
-
+// ShortlinkController is an object who handles the requests made towards our shortlink-application
 type ShortlinkController struct {
 	o11y   *urlshortenertrace.ShortlinkObservability
 	client *shortlinkclient.ShortlinkClient
 }
 
+// NewShortlinkController creates a new ShortlinkController
 func NewShortlinkController(o11y *urlshortenertrace.ShortlinkObservability, client *shortlinkclient.ShortlinkClient) *ShortlinkController {
 	return &ShortlinkController{
 		o11y:   o11y,
@@ -47,45 +53,37 @@ func NewShortlinkController(o11y *urlshortenertrace.ShortlinkObservability, clie
 // @Failure       500         {object}  int     "InternalServerError"
 // @Router /{shortlink} [get]
 func (s *ShortlinkController) HandleShortLink(c *gin.Context) {
-	shortlink := c.Request.URL.Path[1:]
+	shortlinkName := c.Param("shortlink")
 
 	// Call the HTML method of the Context to render a template
-	ctx, span := s.o11y.Trace.Start(c.Request.Context(), "ShortlinkController.HandleShortLink", trace.WithAttributes(attribute.String("shortlink", shortlink)))
+	ctx, span := s.o11y.Trace.Start(c.Request.Context(), "ShortlinkController.HandleShortLink", trace.WithAttributes(attribute.String("shortlink", shortlinkName)))
 	defer span.End()
 
-	span.AddEvent("shortlink", trace.WithAttributes(attribute.String("shortlink", shortlink)))
+	span.AddEvent("shortlink", trace.WithAttributes(attribute.String("shortlink", shortlinkName)))
 
-	shortlinks, err := s.client.Query(ctx, shortlink)
-	if err != nil || len(shortlinks.Items) > 1 {
-		if err != nil {
-			span.RecordError(err)
+	shortlink, err := s.client.Get(ctx, shortlinkName)
+	if err != nil {
+		tracing.RecordError(span, &s.o11y.Log, err, "Failed to get ShortLink")
+
+		if strings.Contains(err.Error(), "not found") {
+			c.HTML(http.StatusNotFound, "404.html", gin.H{})
 		} else {
-			span.RecordError(fmt.Errorf("more than one shortlink definition found"))
+			c.HTML(http.StatusInternalServerError, "500.html", gin.H{})
 		}
-
-		c.HTML(http.StatusInternalServerError, "500.html", gin.H{})
 		return
 	}
-
-	if len(shortlinks.Items) == 0 {
-		span.RecordError(fmt.Errorf("no shortlink definition '%s' found", shortlink))
-		c.HTML(http.StatusNotFound, "404.html", gin.H{})
-		return
-	}
-
-	shortlinkObj := shortlinks.Items[0]
 
 	// Increase hit counter
-	s.client.IncrementInvocationCount(ctx, &shortlinkObj)
+	s.client.IncrementInvocationCount(ctx, shortlink)
 
 	span.SetAttributes(
-		attribute.String("Target", shortlinkObj.Spec.Target),
-		attribute.Int64("RedirectAfter", shortlinkObj.Spec.RedirectAfter),
-		attribute.Int("InvocationCount", shortlinkObj.Status.Count),
+		attribute.String("Target", shortlink.Spec.Target),
+		attribute.Int64("RedirectAfter", shortlink.Spec.RedirectAfter),
+		attribute.Int("InvocationCount", shortlink.Status.Count),
 	)
 
-	if shortlinkObj.Spec.Code != 200 {
-		c.Redirect(shortlinkObj.Spec.Code, shortlinkObj.Spec.Target)
+	if shortlink.Spec.Code != 200 {
+		c.Redirect(shortlink.Spec.Code, shortlink.Spec.Target)
 		return
 	}
 
@@ -99,8 +97,8 @@ func (s *ShortlinkController) HandleShortLink(c *gin.Context) {
 		// Pass the data that the page uses (in this case, 'title')
 		gin.H{
 			"redirectFrom":  c.Request.URL.Path,
-			"redirectTo":    shortlinkObj.Spec.Target,
-			"redirectAfter": shortlinkObj.Spec.RedirectAfter,
+			"redirectTo":    shortlink.Spec.Target,
+			"redirectAfter": shortlink.Spec.RedirectAfter,
 		},
 	)
 }
@@ -112,14 +110,96 @@ func (s *ShortlinkController) HandleShortLink(c *gin.Context) {
 // @Description   get a shorlink
 // @Produce       text/plain
 // @Produce       application/json
-// @Param         shortlink   path      string  false                   "the shortlink URL part (shortlink id)" example(home)
-// @Success       200         {object}  int     "Success"
-// @Failure       404         {object}  int     "NotFound"
-// @Failure       500         {object}  int     "InternalServerError"
-// @Router /api/v1/shortlink             [get]
-// @Router /api/v1/shortlink/{shortlink} [get]
+// @Success       200         {object} []ShortLink "Success"
+// @Failure       404         {object} int                      "NotFound"
+// @Failure       500         {object} int                      "InternalServerError"
+// @Router /api/v1/shortlink/ [get]
 func (s *ShortlinkController) HandleListShortLink(c *gin.Context) {
-	c.HTML(http.StatusNotFound, "404.html", gin.H{})
+	contentType := c.Request.Header.Get("accept")
+
+	// Call the HTML method of the Context to render a template
+	ctx, span := s.o11y.Trace.Start(c.Request.Context(), "ShortlinkController.HandleListShortLink", trace.WithAttributes(attribute.String("accepted_content_type", contentType)))
+	defer span.End()
+
+	shortlinkList, err := s.client.List(ctx)
+	if err != nil {
+		tracing.RecordError(span, &s.o11y.Log, err, "Failed to list ShortLinks")
+
+		statusCode := http.StatusInternalServerError
+
+		if strings.Contains(err.Error(), "not found") {
+			statusCode = http.StatusNotFound
+		}
+
+		ginReturnError(c, statusCode, contentType, err.Error())
+		return
+	}
+
+	targetList := make([]ShortLink, len(shortlinkList.Items))
+
+	for idx, shortlink := range shortlinkList.Items {
+		targetList[idx] = ShortLink{
+			Name:   shortlink.ObjectMeta.Name,
+			Spec:   shortlink.Spec,
+			Status: shortlink.Status,
+		}
+	}
+
+	if contentType == ContentTypeApplicationJSON {
+		c.JSON(http.StatusOK, targetList)
+	} else if contentType == ContentTypeTextPlain {
+		shortLinks := ""
+		for _, shortlink := range targetList {
+			shortLinks += fmt.Sprintf("%s: %s\n", shortlink.Name, shortlink.Spec.Target)
+		}
+		c.Data(http.StatusOK, contentType, []byte(shortLinks))
+	}
+}
+
+// HandleGetShortLink returns the shortlink
+// @BasePath      /api/v1/
+// @Summary       get a shortlink
+// @Schemes       http https
+// @Description   get a shorlink
+// @Produce       text/plain
+// @Produce       application/json
+// @Param         shortlink   path      string  false          "the shortlink URL part (shortlink id)" example(home)
+// @Success       200         {object}  ShortLink "Success"
+// @Failure       404         {object}  int       "NotFound"
+// @Failure       500         {object}  int       "InternalServerError"
+// @Router /api/v1/shortlink/{shortlink} [get]
+func (s *ShortlinkController) HandleGetShortLink(c *gin.Context) {
+	shortlinkName := c.Param("shortlink")
+
+	contentType := c.Request.Header.Get("accept")
+
+	// Call the HTML method of the Context to render a template
+	ctx, span := s.o11y.Trace.Start(c.Request.Context(), "ShortlinkController.HandleGetShortLink", trace.WithAttributes(attribute.String("shortlink", shortlinkName), attribute.String("accepted_content_type", contentType)))
+	defer span.End()
+
+	shortlink, err := s.client.Get(ctx, shortlinkName)
+	if err != nil {
+		tracing.RecordError(span, &s.o11y.Log, err, "Failed to get ShortLink")
+
+		statusCode := http.StatusInternalServerError
+
+		if strings.Contains(err.Error(), "not found") {
+			statusCode = http.StatusNotFound
+		}
+
+		ginReturnError(c, statusCode, contentType, err.Error())
+		return
+	}
+
+	if contentType == ContentTypeTextPlain {
+		c.Data(http.StatusOK, contentType, []byte(shortlink.Spec.Target))
+	} else if contentType == ContentTypeApplicationJSON {
+		c.JSON(http.StatusOK, ShortLink{
+			Name:   shortlink.Name,
+			Spec:   shortlink.Spec,
+			Status: shortlink.Status,
+		})
+	}
 }
 
 // HandleCreateShortLink handles the creation of a shortlink and redirects according to the configuration
@@ -141,7 +221,40 @@ func (s *ShortlinkController) HandleListShortLink(c *gin.Context) {
 // @Failure       500         {object}  int     "InternalServerError"
 // @Router /api/v1/shortlink/{shortlink} [post]
 func (s *ShortlinkController) HandleCreateShortLink(c *gin.Context) {
-	c.HTML(http.StatusNotFound, "404.html", gin.H{})
+	shortlinkName := c.Param("shortlink")
+	contentType := c.Request.Header.Get("accept")
+
+	// Call the HTML method of the Context to render a template
+	ctx, span := s.o11y.Trace.Start(c.Request.Context(), "ShortlinkController.HandleGetShortLink", trace.WithAttributes(attribute.String("shortlink", shortlinkName), attribute.String("accepted_content_type", contentType)))
+	defer span.End()
+
+	shortlink := v1alpha1.ShortLink{
+		ObjectMeta: v1.ObjectMeta{
+			Name: shortlinkName,
+		},
+		Spec: v1alpha1.ShortLinkSpec{},
+	}
+
+	jsonData, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		tracing.RecordError(span, &s.o11y.Log, err, "Unable to read request-body")
+		ginReturnError(c, http.StatusInternalServerError, contentType, err.Error())
+		return
+	}
+
+	if err := json.Unmarshal([]byte(jsonData), &shortlink.Spec); err != nil {
+		tracing.RecordError(span, &s.o11y.Log, err, "Unable to read spec-json")
+		ginReturnError(c, http.StatusInternalServerError, contentType, err.Error())
+		return
+	}
+
+	if err := s.client.Create(ctx, &shortlink); err != nil {
+		tracing.RecordError(span, &s.o11y.Log, err, "Unable to create shortlink")
+		ginReturnError(c, http.StatusInternalServerError, contentType, err.Error())
+		return
+	}
+
+	ginReturnError(c, http.StatusOK, contentType, "")
 }
 
 // HandleDeleteShortLink handles the update of a shortlink
@@ -159,7 +272,52 @@ func (s *ShortlinkController) HandleCreateShortLink(c *gin.Context) {
 // @Failure       500         {object}  int     "InternalServerError"
 // @Router /api/v1/shortlink/{shortlink} [put]
 func (s *ShortlinkController) HandleUpdateShortLink(c *gin.Context) {
-	c.HTML(http.StatusNotFound, "404.html", gin.H{})
+	shortlinkName := c.Param("shortlink")
+
+	contentType := c.Request.Header.Get("accept")
+
+	// Call the HTML method of the Context to render a template
+	ctx, span := s.o11y.Trace.Start(c.Request.Context(), "ShortlinkController.HandleGetShortLink", trace.WithAttributes(attribute.String("shortlink", shortlinkName), attribute.String("accepted_content_type", contentType)))
+	defer span.End()
+
+	shortlink, err := s.client.Get(ctx, shortlinkName)
+	if err != nil {
+		tracing.RecordError(span, &s.o11y.Log, err, "Failed to get ShortLink")
+
+		statusCode := http.StatusInternalServerError
+
+		if strings.Contains(err.Error(), "not found") {
+			statusCode = http.StatusNotFound
+		}
+
+		ginReturnError(c, statusCode, contentType, err.Error())
+		return
+	}
+
+	shortlinkSpec := v1alpha1.ShortLinkSpec{}
+
+	jsonData, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		tracing.RecordError(span, &s.o11y.Log, err, "Unable to read request-body")
+		ginReturnError(c, http.StatusInternalServerError, contentType, err.Error())
+		return
+	}
+
+	if err := json.Unmarshal([]byte(jsonData), &shortlinkSpec); err != nil {
+		tracing.RecordError(span, &s.o11y.Log, err, "Failed to read ShortLink Spec JSON")
+		ginReturnError(c, http.StatusInternalServerError, contentType, err.Error())
+		return
+	}
+
+	shortlink.Spec = shortlinkSpec
+
+	if err := s.client.Update(ctx, shortlink); err != nil {
+		tracing.RecordError(span, &s.o11y.Log, err, "Failed to update ShortLink")
+		ginReturnError(c, http.StatusInternalServerError, contentType, err.Error())
+		return
+	}
+
+	ginReturnError(c, http.StatusOK, contentType, "")
 }
 
 // HandleDeleteShortLink handles the deletion of a shortlink
@@ -175,5 +333,37 @@ func (s *ShortlinkController) HandleUpdateShortLink(c *gin.Context) {
 // @Failure       500         {object}  int     "InternalServerError"
 // @Router /api/v1/shortlink/{shortlink} [delete]
 func (s *ShortlinkController) HandleDeleteShortLink(c *gin.Context) {
-	c.HTML(http.StatusNotFound, "404.html", gin.H{})
+	shortlinkName := c.Param("shortlink")
+
+	contentType := c.Request.Header.Get("accept")
+
+	// Call the HTML method of the Context to render a template
+	ctx, span := s.o11y.Trace.Start(c.Request.Context(), "ShortlinkController.HandleGetShortLink", trace.WithAttributes(attribute.String("shortlink", shortlinkName), attribute.String("accepted_content_type", contentType)))
+	defer span.End()
+
+	shortlink, err := s.client.Get(ctx, shortlinkName)
+	if err != nil {
+		tracing.RecordError(span, &s.o11y.Log, err, "Failed to get ShortLink")
+
+		statusCode := http.StatusInternalServerError
+
+		if strings.Contains(err.Error(), "not found") {
+			statusCode = http.StatusNotFound
+		}
+
+		ginReturnError(c, statusCode, contentType, err.Error())
+		return
+	}
+
+	if err := s.client.Delete(ctx, shortlink); err != nil {
+		statusCode := http.StatusInternalServerError
+
+		if strings.Contains(err.Error(), "not found") {
+			statusCode = http.StatusNotFound
+		}
+
+		tracing.RecordError(span, &s.o11y.Log, err, "Unable to delete ShortLink")
+		ginReturnError(c, statusCode, contentType, err.Error())
+		return
+	}
 }

@@ -16,7 +16,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/v1/shortlink": {
+        "/api/v1/shortlink/": {
             "get": {
                 "description": "get a shorlink",
                 "produces": [
@@ -24,20 +24,14 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "summary": "get a shortlink",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "example": "home",
-                        "description": "the shortlink URL part (shortlink id)",
-                        "name": "shortlink",
-                        "in": "path"
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "Success",
                         "schema": {
-                            "type": "integer"
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/controller.ShortLink"
+                            }
                         }
                     },
                     "404": {
@@ -76,7 +70,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Success",
                         "schema": {
-                            "type": "integer"
+                            "$ref": "#/definitions/controller.ShortLink"
                         }
                     },
                     "404": {
@@ -343,6 +337,20 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "controller.ShortLink": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "spec": {
+                    "$ref": "#/definitions/v1alpha1.ShortLinkSpec"
+                },
+                "status": {
+                    "$ref": "#/definitions/v1alpha1.ShortLinkStatus"
+                }
+            }
+        },
         "v1alpha1.ShortLinkSpec": {
             "type": "object",
             "properties": {
@@ -368,6 +376,15 @@ const docTemplate = `{
                 "target": {
                     "description": "Target specifies the target to which we will redirect\n+kubebuilder:validation:Required\n+kubebuilder:validation:MinLength=1",
                     "type": "string"
+                }
+            }
+        },
+        "v1alpha1.ShortLinkStatus": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "description": "Count represents how often this ShortLink has been called\n+kubebuilder:default:=0\n+kubebuilder:validation:Minimum=0",
+                    "type": "integer"
                 }
             }
         }

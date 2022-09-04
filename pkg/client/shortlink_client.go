@@ -2,15 +2,13 @@ package client
 
 import (
 	"context"
-	"io/ioutil"
+	"os"
 
 	"github.com/av0de/urlshortener/api/v1alpha1"
 	urlshortenertrace "github.com/av0de/urlshortener/pkg/tracing"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -29,12 +27,13 @@ func NewShortlinkClient(client client.Client, o11y *urlshortenertrace.ShortlinkO
 	}
 }
 
+// Get returns a ShortLink in the current namespace
 func (c *ShortlinkClient) Get(ct context.Context, name string) (*v1alpha1.ShortLink, error) {
 	ctx, span := c.o11y.Trace.Start(ct, "ShortlinkClient.Get", trace.WithAttributes(attribute.String("name", name)))
 	defer span.End()
 
 	// try to read the namespace from /var/run
-	namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+	namespace, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 	if err != nil {
 		span.RecordError(err)
 		return nil, errors.Wrap(err, "Unable to read current namespace")
@@ -64,8 +63,7 @@ func (c *ShortlinkClient) GetNamespaced(ct context.Context, nameNamespaced types
 
 	shortlink := &v1alpha1.ShortLink{}
 
-	err := c.client.Get(ctx, nameNamespaced, shortlink)
-	if err != nil {
+	if err := c.client.Get(ctx, nameNamespaced, shortlink); err != nil {
 		span.RecordError(err)
 		return nil, err
 	}
@@ -73,39 +71,29 @@ func (c *ShortlinkClient) GetNamespaced(ct context.Context, nameNamespaced types
 	return shortlink, nil
 }
 
-// List returns a list of all Shortlink
+// List returns a list of all Shortlinks in the current namespace
 func (c *ShortlinkClient) List(ct context.Context) (*v1alpha1.ShortLinkList, error) {
 	ctx, span := c.o11y.Trace.Start(ct, "ShortlinkClient.List")
 	defer span.End()
 
-	shortlinks := &v1alpha1.ShortLinkList{}
-
-	err := c.client.List(ctx, shortlinks)
+	// try to read the namespace from /var/run
+	namespace, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 	if err != nil {
 		span.RecordError(err)
-		return nil, err
+		return nil, errors.Wrap(err, "Unable to read current namespace")
 	}
 
-	return shortlinks, nil
+	return c.ListNamespaced(ctx, string(namespace))
 }
 
-// List returns a list of all Shortlink that match the label shortlink with the parameter label
-// ToDo: Rewrite and come up with a better way. This only works client-side and is absolutely ugly and inefficient
-func (c *ShortlinkClient) Query(ct context.Context, label string) (*v1alpha1.ShortLinkList, error) {
-	ctx, span := c.o11y.Trace.Start(ct, "ShortlinkClient.Query", trace.WithAttributes(attribute.String("label", "shortlink"), attribute.String("labelValue", label)))
+// ListNamespaced returns a list of all Shortlinks in a namespace
+func (c *ShortlinkClient) ListNamespaced(ct context.Context, namespace string) (*v1alpha1.ShortLinkList, error) {
+	ctx, span := c.o11y.Trace.Start(ct, "ShortlinkClient.ListNamespaced", trace.WithAttributes(attribute.String("namespace", namespace)))
 	defer span.End()
 
 	shortlinks := &v1alpha1.ShortLinkList{}
 
-	// Like `kubectl get shortlink -l shortlink=$shortlink
-	shortlinkReq, _ := labels.NewRequirement("shortlink", selection.Equals, []string{label})
-	selector := labels.NewSelector()
-	selector = selector.Add(*shortlinkReq)
-
-	err := c.client.List(ctx, shortlinks, &client.ListOptions{
-		LabelSelector: selector,
-	})
-	if err != nil {
+	if err := c.client.List(ctx, shortlinks, &client.ListOptions{Namespace: namespace}); err != nil {
 		span.RecordError(err)
 		return nil, err
 	}
@@ -113,19 +101,19 @@ func (c *ShortlinkClient) Query(ct context.Context, label string) (*v1alpha1.Sho
 	return shortlinks, nil
 }
 
-func (c *ShortlinkClient) Save(ct context.Context, shortlink *v1alpha1.ShortLink) error {
+func (c *ShortlinkClient) Update(ct context.Context, shortlink *v1alpha1.ShortLink) error {
 	ctx, span := c.o11y.Trace.Start(ct, "ShortlinkClient.Save", trace.WithAttributes(attribute.String("shortlink", shortlink.ObjectMeta.Name), attribute.String("namespace", shortlink.ObjectMeta.Namespace)))
 	defer span.End()
 
-	err := c.client.Update(ctx, shortlink)
-	if err != nil {
+	if err := c.client.Update(ctx, shortlink); err != nil {
 		span.RecordError(err)
+		return err
 	}
 
-	return err
+	return nil
 }
 
-func (c *ShortlinkClient) SaveStatus(ct context.Context, shortlink *v1alpha1.ShortLink) error {
+func (c *ShortlinkClient) UpdateStatus(ct context.Context, shortlink *v1alpha1.ShortLink) error {
 	ctx, span := c.o11y.Trace.Start(ct, "ShortlinkClient.SaveStatus", trace.WithAttributes(attribute.String("shortlink", shortlink.ObjectMeta.Name), attribute.String("namespace", shortlink.ObjectMeta.Namespace)))
 	defer span.End()
 
@@ -143,10 +131,47 @@ func (c *ShortlinkClient) IncrementInvocationCount(ct context.Context, shortlink
 
 	shortlink.Status.Count = shortlink.Status.Count + 1
 
-	err := c.client.Status().Update(ctx, shortlink)
-	if err != nil {
+	if err := c.client.Status().Update(ctx, shortlink); err != nil {
 		span.RecordError(err)
+		return err
 	}
 
-	return err
+	return nil
+}
+
+// Delete deletes a Shortlink object
+func (c *ShortlinkClient) Delete(ct context.Context, shortlink *v1alpha1.ShortLink) error {
+	ctx, span := c.o11y.Trace.Start(ct, "ShortlinkClient.Delete", trace.WithAttributes(attribute.String("name", shortlink.Name), attribute.String("namespace", shortlink.Namespace)))
+	defer span.End()
+
+	if err := c.client.Delete(ctx, shortlink); err != nil {
+		span.RecordError(err)
+		return err
+	}
+
+	return nil
+}
+
+func (c *ShortlinkClient) Create(ct context.Context, shortlink *v1alpha1.ShortLink) error {
+	ctx, span := c.o11y.Trace.Start(ct, "ShortlinkClient.Create", trace.WithAttributes(attribute.String("shortlink", shortlink.ObjectMeta.Name), attribute.String("namespace", shortlink.ObjectMeta.Namespace)))
+	defer span.End()
+
+	if shortlink.Namespace == "" {
+		// try to read the namespace from /var/run
+		namespace, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+		if err != nil {
+			span.RecordError(err)
+			return errors.Wrap(err, "Unable to read current namespace")
+		}
+
+		shortlink.Namespace = string(namespace)
+	}
+
+	// if not exists, create a new one
+	if err := c.client.Create(ctx, shortlink); err != nil {
+		span.RecordError(err)
+		return err
+	}
+
+	return nil
 }

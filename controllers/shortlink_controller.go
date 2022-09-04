@@ -46,7 +46,7 @@ var redirectInvocations = prometheus.NewGaugeVec(
 		Name: "urlshortener_shortlink_invocation",
 		Help: "Counts of how often a shortlink was invoked",
 	},
-	[]string{"name", "namespace", "alias"},
+	[]string{"name", "namespace"},
 )
 
 func init() {
@@ -86,7 +86,7 @@ func (r *ShortLinkReconciler) Reconcile(c context.Context, req ctrl.Request) (ct
 
 	// Get ShortLink from etcd
 	shortlink, err := r.client.GetNamespaced(ctx, req.NamespacedName)
-	if err != nil {
+	if err != nil || shortlink == nil {
 		if errors.IsNotFound(err) {
 			activeRedirects.Dec()
 			urlshortenertrace.RecordInfo(span, &log, "Shortlink resource not found. Ignoring since object must be deleted")
@@ -97,28 +97,6 @@ func (r *ShortLinkReconciler) Reconcile(c context.Context, req ctrl.Request) (ct
 		return ctrl.Result{}, err
 	}
 
-	if shortlink.ObjectMeta.Labels == nil {
-		shortlink.ObjectMeta.Labels = make(map[string]string)
-	}
-
-	labelValue, ok := shortlink.ObjectMeta.Labels["shortlink"]
-	if !ok || labelValue != shortlink.Spec.Alias || !shortlink.Status.Ready {
-		shortlink.ObjectMeta.Labels["shortlink"] = shortlink.Spec.Alias
-
-		if err := r.client.Save(ctx, shortlink); err != nil {
-			// error here!
-			urlshortenertrace.RecordError(span, &log, err, "Failed to update ShortLink")
-			return ctrl.Result{}, err
-		}
-
-		shortlink.Status.Ready = true
-
-		if err := r.client.SaveStatus(ctx, shortlink); err != nil {
-			urlshortenertrace.RecordError(span, &log, err, "Failed to update ShortLink status")
-			return ctrl.Result{}, err
-		}
-	}
-
 	if shortlinkList, err := r.client.List(ctx); shortlinkList != nil && err == nil {
 		activeRedirects.Set(float64(len(shortlinkList.Items)))
 
@@ -126,7 +104,6 @@ func (r *ShortLinkReconciler) Reconcile(c context.Context, req ctrl.Request) (ct
 			redirectInvocations.WithLabelValues(
 				shortlink.ObjectMeta.Name,
 				shortlink.ObjectMeta.Namespace,
-				shortlink.Spec.Alias,
 			).Set(float64(shortlink.Status.Count))
 		}
 	}
