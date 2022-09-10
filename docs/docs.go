@@ -18,12 +18,12 @@ const docTemplate = `{
     "paths": {
         "/api/v1/shortlink/": {
             "get": {
-                "description": "get a shorlink",
+                "description": "list shortlinks",
                 "produces": [
                     "text/plain",
                     "application/json"
                 ],
-                "summary": "get a shortlink",
+                "summary": "list shortlinks",
                 "responses": {
                     "200": {
                         "description": "Success",
@@ -355,13 +355,14 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "after": {
-                    "description": "RedirectAfter specifies after how many seconds to redirect (Default=3)\n+kubebuilder:default:=3\n+kubebuilder:validation:Minimum=0\n+kubebuilder:validation:Maximum=99",
+                    "description": "RedirectAfter specifies after how many seconds to redirect (Default=3)\n+kubebuilder:default:=0\n+kubebuilder:validation:Minimum=0\n+kubebuilder:validation:Maximum=99",
                     "type": "integer"
                 },
                 "code": {
-                    "description": "Code is the URL Code used for the redirection.\nleave on default (200) when using the HTML behavior. However, if you whish to use a HTTP 3xx redirect, set to the appropriate 3xx status code\n+kubebuilder:validation:Enum=200;300;301;302;303;304;305;307;308\n+kubebuilder:default:=200",
+                    "description": "Code is the URL Code used for the redirection.\nleave on default (307) when using the HTML behavior. However, if you whish to use a HTTP 3xx redirect, set to the appropriate 3xx status code\n+kubebuilder:validation:Enum=200;300;301;302;303;304;305;307;308\n+kubebuilder:default:=307",
                     "type": "integer",
                     "enum": [
+                        307,
                         200,
                         300,
                         301,
@@ -369,7 +370,6 @@ const docTemplate = `{
                         303,
                         304,
                         305,
-                        307,
                         308
                     ]
                 },

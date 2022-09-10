@@ -82,8 +82,19 @@ func (s *ShortlinkController) HandleShortLink(c *gin.Context) {
 		attribute.Int("InvocationCount", shortlink.Status.Count),
 	)
 
+	target := shortlink.Spec.Target
+
+	if !strings.HasPrefix(target, "http") {
+		target = fmt.Sprintf("http://%s", target)
+
+		span.AddEvent("change prefix", trace.WithAttributes(
+			attribute.String("from", shortlink.Spec.Target),
+			attribute.String("to", target),
+		))
+	}
+
 	if shortlink.Spec.Code != 200 {
-		c.Redirect(shortlink.Spec.Code, shortlink.Spec.Target)
+		c.Redirect(shortlink.Spec.Code, target)
 		return
 	}
 
@@ -97,7 +108,7 @@ func (s *ShortlinkController) HandleShortLink(c *gin.Context) {
 		// Pass the data that the page uses (in this case, 'title')
 		gin.H{
 			"redirectFrom":  c.Request.URL.Path,
-			"redirectTo":    shortlink.Spec.Target,
+			"redirectTo":    target,
 			"redirectAfter": shortlink.Spec.RedirectAfter,
 		},
 	)
@@ -105,14 +116,14 @@ func (s *ShortlinkController) HandleShortLink(c *gin.Context) {
 
 // HandleListShortLink handles the listing of
 // @BasePath /api/v1/
-// @Summary       get a shortlink
+// @Summary       list shortlinks
 // @Schemes       http https
-// @Description   get a shorlink
+// @Description   list shortlinks
 // @Produce       text/plain
 // @Produce       application/json
 // @Success       200         {object} []ShortLink "Success"
-// @Failure       404         {object} int                      "NotFound"
-// @Failure       500         {object} int                      "InternalServerError"
+// @Failure       404         {object} int         "NotFound"
+// @Failure       500         {object} int         "InternalServerError"
 // @Router /api/v1/shortlink/ [get]
 func (s *ShortlinkController) HandleListShortLink(c *gin.Context) {
 	contentType := c.Request.Header.Get("accept")
@@ -210,15 +221,15 @@ func (s *ShortlinkController) HandleGetShortLink(c *gin.Context) {
 // @Accept        application/json
 // @Produce       text/plain
 // @Produce       application/json
-// @Param         shortlink   path      string                 false  "the shortlink URL part (shortlink id)" example(home)
-// @Param         spec        body      v1alpha1.ShortLinkSpec true   "shortlink spec"
-// @Success       200         {object}  int     "Success"
-// @Success       301         {object}  int     "MovedPermanently"
-// @Success       302         {object}  int     "Found"
-// @Success       307         {object}  int     "TemporaryRedirect"
-// @Success       308         {object}  int     "PermanentRedirect"
-// @Failure       404         {object}  int     "NotFound"
-// @Failure       500         {object}  int     "InternalServerError"
+// @Param         shortlink   path      string                 	false  					"the shortlink URL part (shortlink id)" example(home)
+// @Param         spec        body      v1alpha1.ShortLinkSpec 	true   					"shortlink spec"
+// @Success       200         {object}  int     				"Success"
+// @Success       301         {object}  int     				"MovedPermanently"
+// @Success       302         {object}  int     				"Found"
+// @Success       307         {object}  int     				"TemporaryRedirect"
+// @Success       308         {object}  int     				"PermanentRedirect"
+// @Failure       404         {object}  int     				"NotFound"
+// @Failure       500         {object}  int     				"InternalServerError"
 // @Router /api/v1/shortlink/{shortlink} [post]
 func (s *ShortlinkController) HandleCreateShortLink(c *gin.Context) {
 	shortlinkName := c.Param("shortlink")
@@ -254,7 +265,15 @@ func (s *ShortlinkController) HandleCreateShortLink(c *gin.Context) {
 		return
 	}
 
-	ginReturnError(c, http.StatusOK, contentType, "")
+	if contentType == ContentTypeTextPlain {
+		c.Data(http.StatusOK, contentType, []byte(fmt.Sprintf("%s: %s\n", shortlink.Name, shortlink.Spec.Target)))
+	} else if contentType == ContentTypeApplicationJSON {
+		c.JSON(http.StatusOK, ShortLink{
+			Name:   shortlink.Name,
+			Spec:   shortlink.Spec,
+			Status: shortlink.Status,
+		})
+	}
 }
 
 // HandleDeleteShortLink handles the update of a shortlink

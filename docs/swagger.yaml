@@ -13,17 +13,18 @@ definitions:
       after:
         description: |-
           RedirectAfter specifies after how many seconds to redirect (Default=3)
-          +kubebuilder:default:=3
+          +kubebuilder:default:=0
           +kubebuilder:validation:Minimum=0
           +kubebuilder:validation:Maximum=99
         type: integer
       code:
         description: |-
           Code is the URL Code used for the redirection.
-          leave on default (200) when using the HTML behavior. However, if you whish to use a HTTP 3xx redirect, set to the appropriate 3xx status code
+          leave on default (307) when using the HTML behavior. However, if you whish to use a HTTP 3xx redirect, set to the appropriate 3xx status code
           +kubebuilder:validation:Enum=200;300;301;302;303;304;305;307;308
-          +kubebuilder:default:=200
+          +kubebuilder:default:=307
         enum:
+        - 307
         - 200
         - 300
         - 301
@@ -31,7 +32,6 @@ definitions:
         - 303
         - 304
         - 305
-        - 307
         - 308
         type: integer
       target:
@@ -112,7 +112,7 @@ paths:
       summary: redirect to target
   /api/v1/shortlink/:
     get:
-      description: get a shorlink
+      description: list shortlinks
       produces:
       - text/plain
       - application/json
@@ -131,7 +131,7 @@ paths:
           description: InternalServerError
           schema:
             type: integer
-      summary: get a shortlink
+      summary: list shortlinks
   /api/v1/shortlink/{shortlink}:
     delete:
       description: delete shorlink
