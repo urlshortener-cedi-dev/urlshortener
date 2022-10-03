@@ -1,3 +1,4 @@
+basePath: /
 definitions:
   controller.ShortLink:
     properties:
@@ -51,7 +52,16 @@ definitions:
         type: integer
     type: object
 info:
-  contact: {}
+  contact:
+    email: urlshortener@cedi.dev
+    name: Cedric Kienzler
+    url: cedi.dev
+  description: A url shortener, written in Go running on Kubernetes
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  title: URL Shortener
+  version: "1.0"
 paths:
   /{shortlink}:
     get:
@@ -110,6 +120,8 @@ paths:
           schema:
             type: integer
       summary: redirect to target
+      tags:
+      - default
   /api/v1/shortlink/:
     get:
       description: list shortlinks
@@ -132,6 +144,8 @@ paths:
           schema:
             type: integer
       summary: list shortlinks
+      tags:
+      - api/v1/
   /api/v1/shortlink/{shortlink}:
     delete:
       description: delete shortlink
@@ -159,6 +173,8 @@ paths:
           schema:
             type: integer
       summary: delete shortlink
+      tags:
+      - api/v1/
     get:
       description: get a shortlink
       parameters:
@@ -184,6 +200,8 @@ paths:
           schema:
             type: integer
       summary: get a shortlink
+      tags:
+      - api/v1/
     post:
       consumes:
       - application/json
@@ -233,6 +251,8 @@ paths:
           schema:
             type: integer
       summary: create new shortlink
+      tags:
+      - api/v1/
     put:
       consumes:
       - application/json
@@ -267,4 +287,6 @@ paths:
           schema:
             type: integer
       summary: update existing shortlink
+      tags:
+      - api/v1/
 swagger: "2.0"

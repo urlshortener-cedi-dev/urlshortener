@@ -1,8 +1,20 @@
 {
     "swagger": "2.0",
     "info": {
-        "contact": {}
+        "description": "A url shortener, written in Go running on Kubernetes",
+        "title": "URL Shortener",
+        "contact": {
+            "name": "Cedric Kienzler",
+            "url": "cedi.dev",
+            "email": "urlshortener@cedi.dev"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        },
+        "version": "1.0"
     },
+    "basePath": "/",
     "paths": {
         "/api/v1/shortlink/": {
             "get": {
@@ -10,6 +22,9 @@
                 "produces": [
                     "text/plain",
                     "application/json"
+                ],
+                "tags": [
+                    "api/v1/"
                 ],
                 "summary": "list shortlinks",
                 "responses": {
@@ -43,6 +58,9 @@
                 "produces": [
                     "text/plain",
                     "application/json"
+                ],
+                "tags": [
+                    "api/v1/"
                 ],
                 "summary": "get a shortlink",
                 "parameters": [
@@ -83,6 +101,9 @@
                 "produces": [
                     "text/plain",
                     "application/json"
+                ],
+                "tags": [
+                    "api/v1/"
                 ],
                 "summary": "update existing shortlink",
                 "parameters": [
@@ -133,6 +154,9 @@
                 "produces": [
                     "text/plain",
                     "application/json"
+                ],
+                "tags": [
+                    "api/v1/"
                 ],
                 "summary": "create new shortlink",
                 "parameters": [
@@ -204,6 +228,9 @@
                     "text/plain",
                     "application/json"
                 ],
+                "tags": [
+                    "api/v1/"
+                ],
                 "summary": "delete shortlink",
                 "parameters": [
                     {
@@ -242,6 +269,9 @@
                 "description": "redirect to target as per configuration of the shortlink",
                 "produces": [
                     "text/html"
+                ],
+                "tags": [
+                    "default"
                 ],
                 "summary": "redirect to target",
                 "parameters": [

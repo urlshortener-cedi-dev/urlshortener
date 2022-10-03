@@ -10,7 +10,15 @@ const docTemplate = `{
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
-        "contact": {},
+        "contact": {
+            "name": "Cedric Kienzler",
+            "url": "cedi.dev",
+            "email": "urlshortener@cedi.dev"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        },
         "version": "{{.Version}}"
     },
     "host": "{{.Host}}",
@@ -22,6 +30,9 @@ const docTemplate = `{
                 "produces": [
                     "text/plain",
                     "application/json"
+                ],
+                "tags": [
+                    "api/v1/"
                 ],
                 "summary": "list shortlinks",
                 "responses": {
@@ -55,6 +66,9 @@ const docTemplate = `{
                 "produces": [
                     "text/plain",
                     "application/json"
+                ],
+                "tags": [
+                    "api/v1/"
                 ],
                 "summary": "get a shortlink",
                 "parameters": [
@@ -95,6 +109,9 @@ const docTemplate = `{
                 "produces": [
                     "text/plain",
                     "application/json"
+                ],
+                "tags": [
+                    "api/v1/"
                 ],
                 "summary": "update existing shortlink",
                 "parameters": [
@@ -145,6 +162,9 @@ const docTemplate = `{
                 "produces": [
                     "text/plain",
                     "application/json"
+                ],
+                "tags": [
+                    "api/v1/"
                 ],
                 "summary": "create new shortlink",
                 "parameters": [
@@ -216,6 +236,9 @@ const docTemplate = `{
                     "text/plain",
                     "application/json"
                 ],
+                "tags": [
+                    "api/v1/"
+                ],
                 "summary": "delete shortlink",
                 "parameters": [
                     {
@@ -254,6 +277,9 @@ const docTemplate = `{
                 "description": "redirect to target as per configuration of the shortlink",
                 "produces": [
                     "text/html"
+                ],
+                "tags": [
+                    "default"
                 ],
                 "summary": "redirect to target",
                 "parameters": [
@@ -393,12 +419,12 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "",
+	Version:          "1.0",
 	Host:             "",
-	BasePath:         "",
+	BasePath:         "/",
 	Schemes:          []string{},
-	Title:            "",
-	Description:      "",
+	Title:            "URL Shortener",
+	Description:      "A url shortener, written in Go running on Kubernetes",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 }

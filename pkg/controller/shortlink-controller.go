@@ -51,6 +51,7 @@ func NewShortlinkController(o11y *urlshortenerTrace.ShortlinkObservability, clie
 // @Success       308         {object}  int     "PermanentRedirect"
 // @Failure       404         {object}  int     "NotFound"
 // @Failure       500         {object}  int     "InternalServerError"
+// @Tags default
 // @Router /{shortlink} [get]
 func (s *ShortlinkController) HandleShortLink(c *gin.Context) {
 	shortlinkName := c.Param("shortlink")
@@ -124,6 +125,7 @@ func (s *ShortlinkController) HandleShortLink(c *gin.Context) {
 // @Success       200         {object} []ShortLink "Success"
 // @Failure       404         {object} int         "NotFound"
 // @Failure       500         {object} int         "InternalServerError"
+// @Tags api/v1/
 // @Router /api/v1/shortlink/ [get]
 func (s *ShortlinkController) HandleListShortLink(c *gin.Context) {
 	contentType := c.Request.Header.Get("accept")
@@ -178,6 +180,7 @@ func (s *ShortlinkController) HandleListShortLink(c *gin.Context) {
 // @Success       200         {object}  ShortLink "Success"
 // @Failure       404         {object}  int       "NotFound"
 // @Failure       500         {object}  int       "InternalServerError"
+// @Tags api/v1/
 // @Router /api/v1/shortlink/{shortlink} [get]
 func (s *ShortlinkController) HandleGetShortLink(c *gin.Context) {
 	shortlinkName := c.Param("shortlink")
@@ -230,6 +233,7 @@ func (s *ShortlinkController) HandleGetShortLink(c *gin.Context) {
 // @Success       308         {object}  int     				"PermanentRedirect"
 // @Failure       404         {object}  int     				"NotFound"
 // @Failure       500         {object}  int     				"InternalServerError"
+// @Tags api/v1/
 // @Router /api/v1/shortlink/{shortlink} [post]
 func (s *ShortlinkController) HandleCreateShortLink(c *gin.Context) {
 	shortlinkName := c.Param("shortlink")
@@ -289,6 +293,7 @@ func (s *ShortlinkController) HandleCreateShortLink(c *gin.Context) {
 // @Success       200         {object}  int     "Success"
 // @Failure       404         {object}  int     "NotFound"
 // @Failure       500         {object}  int     "InternalServerError"
+// @Tags api/v1/
 // @Router /api/v1/shortlink/{shortlink} [put]
 func (s *ShortlinkController) HandleUpdateShortLink(c *gin.Context) {
 	shortlinkName := c.Param("shortlink")
@@ -350,6 +355,7 @@ func (s *ShortlinkController) HandleUpdateShortLink(c *gin.Context) {
 // @Success       200         {object}  int     "Success"
 // @Failure       404         {object}  int     "NotFound"
 // @Failure       500         {object}  int     "InternalServerError"
+// @Tags api/v1/
 // @Router /api/v1/shortlink/{shortlink} [delete]
 func (s *ShortlinkController) HandleDeleteShortLink(c *gin.Context) {
 	shortlinkName := c.Param("shortlink")

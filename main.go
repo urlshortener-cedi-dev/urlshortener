@@ -62,6 +62,17 @@ func init() {
 	//+kubebuilder:scaffold:scheme
 }
 
+// @title 			URL Shortener
+// @version         1.0
+// @description     A url shortener, written in Go running on Kubernetes
+
+// @contact.name   Cedric Kienzler
+// @contact.url    cedi.dev
+// @contact.email  urlshortener@cedi.dev
+
+// @license.name  	Apache 2.0
+// @license.url   	http://www.apache.org/licenses/LICENSE-2.0.html
+// @BasePath /
 func main() {
 	var metricsAddr string
 	var probeAddr string
