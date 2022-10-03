@@ -29,8 +29,8 @@ import (
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	utilRuntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientGoScheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -39,12 +39,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-logr/logr"
 
-	urlshortenerv1alpha1 "github.com/av0de/urlshortener/api/v1alpha1"
+	v1alpha1 "github.com/av0de/urlshortener/api/v1alpha1"
 	"github.com/av0de/urlshortener/controllers"
-	shortlinkclient "github.com/av0de/urlshortener/pkg/client"
-	urlshortenercontroller "github.com/av0de/urlshortener/pkg/controller"
-	urlshortenerrouter "github.com/av0de/urlshortener/pkg/router"
-	urlshortenertrace "github.com/av0de/urlshortener/pkg/tracing"
+	shortlinkClient "github.com/av0de/urlshortener/pkg/client"
+	urlShortenerController "github.com/av0de/urlshortener/pkg/controller"
+	router "github.com/av0de/urlshortener/pkg/router"
+	tracing "github.com/av0de/urlshortener/pkg/tracing"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -56,9 +56,9 @@ var (
 )
 
 func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilRuntime.Must(clientGoScheme.AddToScheme(scheme))
 
-	utilruntime.Must(urlshortenerv1alpha1.AddToScheme(scheme))
+	utilRuntime.Must(v1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -78,7 +78,7 @@ func main() {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 	shutdownLog := ctrl.Log.WithName("shutdown")
 
-	o11y, err := urlshortenertrace.NewShortlinkObservability(serviceName, serviceVersion, ctrl.Log)
+	o11y, err := tracing.NewShortlinkObservability(serviceName, serviceVersion, ctrl.Log)
 	if err != nil {
 		setupLog.Error(err, "failed initializing observability")
 		os.Exit(1)
@@ -104,18 +104,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	shortlinkClient := shortlinkclient.NewShortlinkClient(
+	sClient := shortlinkClient.NewShortlinkClient(
 		mgr.GetClient(),
 		o11y,
 	)
 
-	redirectClient := shortlinkclient.NewRedirectClient(
+	rClient := shortlinkClient.NewRedirectClient(
 		mgr.GetClient(),
 		o11y,
 	)
 
 	shortlinkReconciler := controllers.NewShortLinkReconciler(
-		shortlinkClient,
+		sClient,
 		mgr.GetScheme(),
 		o11y,
 	)
@@ -125,7 +125,7 @@ func main() {
 	}
 	redirectReconciler := controllers.NewRedirectReconciler(
 		mgr.GetClient(),
-		redirectClient,
+		rClient,
 		mgr.GetScheme(),
 		o11y,
 	)
@@ -153,14 +153,14 @@ func main() {
 		}
 	}()
 
-	shortlinkController := urlshortenercontroller.NewShortlinkController(o11y, shortlinkClient)
+	shortlinkController := urlShortenerController.NewShortlinkController(o11y, sClient)
 
 	// Init Gin Framework
 	gin.SetMode(gin.ReleaseMode)
-	router, srv := urlshortenerrouter.NewGinGonicHTTPServer(&setupLog, bindAddr)
+	r, srv := router.NewGinGonicHTTPServer(&setupLog, bindAddr)
 
 	setupLog.Info("Load API routes")
-	urlshortenerrouter.Load(router, shortlinkController)
+	router.Load(r, shortlinkController)
 
 	// run our gin server mgr in a separate go routine
 	go func() {
@@ -174,7 +174,7 @@ func main() {
 	shutdownLog.Info("Server exiting")
 }
 
-// handleShutdown waits for interupt signal and then tries to gracefully
+// handleShutdown waits for interrupt signal and then tries to gracefully
 // shutdown the server with a timeout of 5 seconds.
 func handleShutdown(srv *http.Server, shutdownLog *logr.Logger) {
 	quit := make(chan os.Signal, 1)

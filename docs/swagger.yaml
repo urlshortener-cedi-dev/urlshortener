@@ -134,7 +134,7 @@ paths:
       summary: list shortlinks
   /api/v1/shortlink/{shortlink}:
     delete:
-      description: delete shorlink
+      description: delete shortlink
       parameters:
       - description: the shortlink URL part (shortlink id)
         example: home
@@ -160,7 +160,7 @@ paths:
             type: integer
       summary: delete shortlink
     get:
-      description: get a shorlink
+      description: get a shortlink
       parameters:
       - description: the shortlink URL part (shortlink id)
         example: home
@@ -187,7 +187,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: create a new shorlink
+      description: create a new shortlink
       parameters:
       - description: the shortlink URL part (shortlink id)
         example: home
@@ -236,7 +236,7 @@ paths:
     put:
       consumes:
       - application/json
-      description: update a new shorlink
+      description: update a new shortlink
       parameters:
       - description: the shortlink URL part (shortlink id)
         example: home

@@ -51,7 +51,7 @@ const docTemplate = `{
         },
         "/api/v1/shortlink/{shortlink}": {
             "get": {
-                "description": "get a shorlink",
+                "description": "get a shortlink",
                 "produces": [
                     "text/plain",
                     "application/json"
@@ -88,7 +88,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "update a new shorlink",
+                "description": "update a new shortlink",
                 "consumes": [
                     "application/json"
                 ],
@@ -138,7 +138,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "create a new shorlink",
+                "description": "create a new shortlink",
                 "consumes": [
                     "application/json"
                 ],
@@ -211,7 +211,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "delete shorlink",
+                "description": "delete shortlink",
                 "produces": [
                     "text/plain",
                     "application/json"

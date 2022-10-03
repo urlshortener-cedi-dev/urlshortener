@@ -22,11 +22,11 @@ import (
 // ShortlinkController is an object who handles the requests made towards our shortlink-application
 type ShortlinkController struct {
 	o11y   *urlshortenerTrace.ShortlinkObservability
-	client *shortlinkClient.shortlinkClient
+	client *shortlinkClient.ShortlinkClient
 }
 
 // NewShortlinkController creates a new ShortlinkController
-func NewShortlinkController(o11y *urlshortenerTrace.ShortlinkObservability, client *shortlinkClient.shortlinkClient) *ShortlinkController {
+func NewShortlinkController(o11y *urlshortenerTrace.ShortlinkObservability, client *shortlinkClient.ShortlinkClient) *ShortlinkController {
 	return &ShortlinkController{
 		o11y:   o11y,
 		client: client,
