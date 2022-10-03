@@ -1,11 +1,14 @@
 {
     "makefile.extensionOutputFolder": "./.vscode",
     "cSpell.words": [
+        "apimachinery",
         "Gonic",
         "kubebuilder",
         "logr",
+        "otel",
         "otelgin",
         "shortlink",
-        "shortlinks"
+        "shortlinks",
+        "urlshortener"
     ]
 }

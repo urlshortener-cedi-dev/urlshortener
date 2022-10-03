@@ -9,9 +9,9 @@ import (
 
 	"github.com/av0de/urlshortener/api/v1alpha1"
 	_ "github.com/av0de/urlshortener/api/v1alpha1"
-	shortlinkclient "github.com/av0de/urlshortener/pkg/client"
+	shortlinkClient "github.com/av0de/urlshortener/pkg/client"
 	"github.com/av0de/urlshortener/pkg/tracing"
-	urlshortenertrace "github.com/av0de/urlshortener/pkg/tracing"
+	urlshortenerTrace "github.com/av0de/urlshortener/pkg/tracing"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/gin-gonic/gin"
@@ -21,12 +21,12 @@ import (
 
 // ShortlinkController is an object who handles the requests made towards our shortlink-application
 type ShortlinkController struct {
-	o11y   *urlshortenertrace.ShortlinkObservability
-	client *shortlinkclient.ShortlinkClient
+	o11y   *urlshortenerTrace.ShortlinkObservability
+	client *shortlinkClient.shortlinkClient
 }
 
 // NewShortlinkController creates a new ShortlinkController
-func NewShortlinkController(o11y *urlshortenertrace.ShortlinkObservability, client *shortlinkclient.ShortlinkClient) *ShortlinkController {
+func NewShortlinkController(o11y *urlshortenerTrace.ShortlinkObservability, client *shortlinkClient.shortlinkClient) *ShortlinkController {
 	return &ShortlinkController{
 		o11y:   o11y,
 		client: client,
@@ -171,7 +171,7 @@ func (s *ShortlinkController) HandleListShortLink(c *gin.Context) {
 // @BasePath      /api/v1/
 // @Summary       get a shortlink
 // @Schemes       http https
-// @Description   get a shorlink
+// @Description   get a shortlink
 // @Produce       text/plain
 // @Produce       application/json
 // @Param         shortlink   path      string  false          "the shortlink URL part (shortlink id)" example(home)
@@ -217,7 +217,7 @@ func (s *ShortlinkController) HandleGetShortLink(c *gin.Context) {
 // @BasePath /api/v1/
 // @Summary       create new shortlink
 // @Schemes       http https
-// @Description   create a new shorlink
+// @Description   create a new shortlink
 // @Accept        application/json
 // @Produce       text/plain
 // @Produce       application/json
@@ -280,7 +280,7 @@ func (s *ShortlinkController) HandleCreateShortLink(c *gin.Context) {
 // @BasePath /api/v1/
 // @Summary       update existing shortlink
 // @Schemes       http https
-// @Description   update a new shorlink
+// @Description   update a new shortlink
 // @Accept        application/json
 // @Produce       text/plain
 // @Produce       application/json
@@ -343,7 +343,7 @@ func (s *ShortlinkController) HandleUpdateShortLink(c *gin.Context) {
 // @BasePath /api/v1/
 // @Summary       delete shortlink
 // @Schemes       http https
-// @Description   delete shorlink
+// @Description   delete shortlink
 // @Produce       text/plain
 // @Produce       application/json
 // @Param         shortlink   path      string                 true   "the shortlink URL part (shortlink id)" example(home)
