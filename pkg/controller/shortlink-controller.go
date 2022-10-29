@@ -62,7 +62,7 @@ func (s *ShortlinkController) HandleShortLink(c *gin.Context) {
 
 	span.AddEvent("shortlink", trace.WithAttributes(attribute.String("shortlink", shortlinkName)))
 
-	c.Header("Cache-Control", "public, max-age=300") // 5 min
+	c.Header("Cache-Control", "public, max-age=900, stale-if-error=3600") // max-age = 15min; stale-if-error = 1h
 
 	shortlink, err := s.client.Get(ctx, shortlinkName)
 	if err != nil {
