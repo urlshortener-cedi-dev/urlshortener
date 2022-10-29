@@ -62,6 +62,8 @@ func (s *ShortlinkController) HandleShortLink(c *gin.Context) {
 
 	span.AddEvent("shortlink", trace.WithAttributes(attribute.String("shortlink", shortlinkName)))
 
+	c.Header("Cache-Control", "public, max-age=300") // 5 min
+
 	shortlink, err := s.client.Get(ctx, shortlinkName)
 	if err != nil {
 		tracing.RecordError(span, &s.o11y.Log, err, "Failed to get ShortLink")
