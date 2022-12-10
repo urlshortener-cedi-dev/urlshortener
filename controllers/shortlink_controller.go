@@ -27,9 +27,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
-	v1alpha1 "github.com/av0de/urlshortener/api/v1alpha1"
-	shortlinkclient "github.com/av0de/urlshortener/pkg/client"
-	urlshortenertrace "github.com/av0de/urlshortener/pkg/tracing"
+	v1alpha1 "github.com/cedi/urlshortener/api/v1alpha1"
+	shortlinkclient "github.com/cedi/urlshortener/pkg/client"
+	urlshortenertrace "github.com/cedi/urlshortener/pkg/tracing"
 
 	"github.com/prometheus/client_golang/prometheus"
 )

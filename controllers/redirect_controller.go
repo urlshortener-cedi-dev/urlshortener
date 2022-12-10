@@ -28,10 +28,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	urlshortenerv1alpha1 "github.com/av0de/urlshortener/api/v1alpha1"
-	redirectclient "github.com/av0de/urlshortener/pkg/client"
-	redirectpkg "github.com/av0de/urlshortener/pkg/redirect"
-	urlshortenertrace "github.com/av0de/urlshortener/pkg/tracing"
+	urlshortenerv1alpha1 "github.com/cedi/urlshortener/api/v1alpha1"
+	redirectclient "github.com/cedi/urlshortener/pkg/client"
+	redirectpkg "github.com/cedi/urlshortener/pkg/redirect"
+	urlshortenertrace "github.com/cedi/urlshortener/pkg/tracing"
 	"github.com/pkg/errors"
 )
 

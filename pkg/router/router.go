@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	docs "github.com/av0de/urlshortener/docs"
-	urlShortenerController "github.com/av0de/urlshortener/pkg/controller"
+	docs "github.com/cedi/urlshortener/docs"
+	urlShortenerController "github.com/cedi/urlshortener/pkg/controller"
 
 	"github.com/gin-gonic/contrib/secure"
 	"github.com/gin-gonic/gin"

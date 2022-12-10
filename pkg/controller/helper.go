@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"github.com/av0de/urlshortener/api/v1alpha1"
+	"github.com/cedi/urlshortener/api/v1alpha1"
 	"github.com/gin-gonic/gin"
 )
 

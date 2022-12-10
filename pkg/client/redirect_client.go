@@ -4,8 +4,8 @@ import (
 	"context"
 	"io/ioutil"
 
-	"github.com/av0de/urlshortener/api/v1alpha1"
-	urlshortenertrace "github.com/av0de/urlshortener/pkg/tracing"
+	"github.com/cedi/urlshortener/api/v1alpha1"
+	urlshortenertrace "github.com/cedi/urlshortener/pkg/tracing"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"

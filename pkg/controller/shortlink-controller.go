@@ -7,11 +7,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/av0de/urlshortener/api/v1alpha1"
-	_ "github.com/av0de/urlshortener/api/v1alpha1"
-	shortlinkClient "github.com/av0de/urlshortener/pkg/client"
-	"github.com/av0de/urlshortener/pkg/tracing"
-	urlshortenerTrace "github.com/av0de/urlshortener/pkg/tracing"
+	"github.com/cedi/urlshortener/api/v1alpha1"
+	_ "github.com/cedi/urlshortener/api/v1alpha1"
+	shortlinkClient "github.com/cedi/urlshortener/pkg/client"
+	"github.com/cedi/urlshortener/pkg/tracing"
+	urlshortenerTrace "github.com/cedi/urlshortener/pkg/tracing"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/gin-gonic/gin"

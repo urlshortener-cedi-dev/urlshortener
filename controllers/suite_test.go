@@ -30,7 +30,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	urlshortenerv1alpha1 "github.com/av0de/urlshortener/api/v1alpha1"
+	urlshortenerv1alpha1 "github.com/cedi/urlshortener/api/v1alpha1"
 	//+kubebuilder:scaffold:imports
 )
 
