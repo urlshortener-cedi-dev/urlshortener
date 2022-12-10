@@ -2,6 +2,8 @@ module github.com/av0de/urlshortener
 
 go 1.19
 
+retract v0.0.0
+
 require (
 	github.com/MrAlias/flow v0.1.5
 	github.com/gin-gonic/contrib v0.0.0-20201101042839-6a891bf89f19
