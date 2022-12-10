@@ -1,4 +1,4 @@
-module github.com/cedi/urlshortener
+module cedi/urlshortener
 
 go 1.19
 
