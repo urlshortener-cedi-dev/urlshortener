@@ -1,8 +1,6 @@
-module cedi/urlshortener
+module github.com/cedi/urlshortener
 
 go 1.19
-
-retract v0.0.0
 
 require (
 	github.com/MrAlias/flow v0.1.5
