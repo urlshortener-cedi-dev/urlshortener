@@ -35,10 +35,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var activeRedirects = prometheus.NewGauge(
+var activeShortlinks = prometheus.NewGauge(
 	prometheus.GaugeOpts{
-		Name: "urlshortener_active_redirects",
-		Help: "Number of redirects installed for this urlshortener instance",
+		Name: "urlshortener_active_shortlinks",
+		Help: "Number of shortlinks installed for this urlshortener instance",
 	},
 )
 
@@ -51,7 +51,8 @@ var redirectInvocations = prometheus.NewGaugeVec(
 )
 
 func init() {
-	metrics.Registry.MustRegister(activeRedirects, redirectInvocations)
+	metrics.Registry.MustRegister(activeShortlinks)
+	metrics.Registry.MustRegister(redirectInvocations)
 }
 
 // ShortLinkReconciler reconciles a ShortLink object
@@ -91,17 +92,15 @@ func (r *ShortLinkReconciler) Reconcile(c context.Context, req ctrl.Request) (ct
 	shortlink, err := r.client.GetNamespaced(ctx, req.NamespacedName)
 	if err != nil || shortlink == nil {
 		if errors.IsNotFound(err) {
-			activeRedirects.Dec()
+			activeShortlinks.Dec()
 			observability.RecordInfo(span, &log, "Shortlink resource not found. Ignoring since object must be deleted")
-			return ctrl.Result{}, nil
+		} else {
+			observability.RecordError(span, &log, err, "Failed to fetch ShortLink resource")
 		}
-
-		observability.RecordError(span, &log, err, "Failed to fetch ShortLink resource")
-		return ctrl.Result{}, err
 	}
 
 	if shortlinkList, err := r.client.List(ctx); shortlinkList != nil && err == nil {
-		activeRedirects.Set(float64(len(shortlinkList.Items)))
+		activeShortlinks.Set(float64(len(shortlinkList.Items)))
 
 		for _, shortlink := range shortlinkList.Items {
 			redirectInvocations.WithLabelValues(
