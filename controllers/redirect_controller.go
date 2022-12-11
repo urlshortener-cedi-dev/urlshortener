@@ -57,9 +57,9 @@ func NewRedirectReconciler(client client.Client, rClient *redirectclient.Redirec
 	}
 }
 
-//+kubebuilder:rbac:groups=urlshortener.av0.de,resources=redirects,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=urlshortener.av0.de,resources=redirects/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=urlshortener.av0.de,resources=redirects/finalizers,verbs=update
+//+kubebuilder:rbac:groups=urlshortener.cedi.dev,resources=redirects,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=urlshortener.cedi.dev,resources=redirects/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=urlshortener.cedi.dev,resources=redirects/finalizers,verbs=update
 
 //+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses/status,verbs=get;update;patch

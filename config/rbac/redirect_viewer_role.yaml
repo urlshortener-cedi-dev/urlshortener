@@ -5,7 +5,7 @@ metadata:
   name: redirect-viewer-role
 rules:
 - apiGroups:
-  - urlshortener.av0.de
+  - urlshortener.cedi.dev
   resources:
   - redirects
   verbs:
@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - urlshortener.av0.de
+  - urlshortener.cedi.dev
   resources:
   - redirects/status
   verbs:
