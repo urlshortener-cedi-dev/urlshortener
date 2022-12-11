@@ -29,7 +29,8 @@ import (
 
 	v1alpha1 "github.com/cedi/urlshortener/api/v1alpha1"
 	shortlinkclient "github.com/cedi/urlshortener/pkg/client"
-	urlshortenertrace "github.com/cedi/urlshortener/pkg/tracing"
+	"github.com/cedi/urlshortener/pkg/observability"
+	"github.com/go-logr/logr"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -57,15 +58,17 @@ func init() {
 type ShortLinkReconciler struct {
 	client *shortlinkclient.ShortlinkClient
 	scheme *runtime.Scheme
-	o11y   *urlshortenertrace.ShortlinkObservability
+	log    *logr.Logger
+	tracer trace.Tracer
 }
 
 // NewShortLinkReconciler returns a new ShortLinkReconciler
-func NewShortLinkReconciler(client *shortlinkclient.ShortlinkClient, scheme *runtime.Scheme, o11y *urlshortenertrace.ShortlinkObservability) *ShortLinkReconciler {
+func NewShortLinkReconciler(client *shortlinkclient.ShortlinkClient, scheme *runtime.Scheme, log *logr.Logger, tracer trace.Tracer) *ShortLinkReconciler {
 	return &ShortLinkReconciler{
 		client: client,
 		scheme: scheme,
-		o11y:   o11y,
+		log:    log,
+		tracer: tracer,
 	}
 }
 
@@ -79,21 +82,21 @@ func NewShortLinkReconciler(client *shortlinkclient.ShortlinkClient, scheme *run
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
 func (r *ShortLinkReconciler) Reconcile(c context.Context, req ctrl.Request) (ctrl.Result, error) {
-	ctx, span := r.o11y.Trace.Start(c, "ShortLinkReconciler.Reconcile", trace.WithAttributes(attribute.String("shortlink", req.Name)))
+	ctx, span := r.tracer.Start(c, "ShortLinkReconciler.Reconcile", trace.WithAttributes(attribute.String("shortlink", req.Name)))
 	defer span.End()
 
-	log := r.o11y.Log.WithName("reconciler").WithValues("shortlink", req.NamespacedName.String())
+	log := r.log.WithName("reconciler").WithValues("shortlink", req.NamespacedName.String())
 
 	// Get ShortLink from etcd
 	shortlink, err := r.client.GetNamespaced(ctx, req.NamespacedName)
 	if err != nil || shortlink == nil {
 		if errors.IsNotFound(err) {
 			activeRedirects.Dec()
-			urlshortenertrace.RecordInfo(span, &log, "Shortlink resource not found. Ignoring since object must be deleted")
+			observability.RecordInfo(span, &log, "Shortlink resource not found. Ignoring since object must be deleted")
 			return ctrl.Result{}, nil
 		}
 
-		urlshortenertrace.RecordError(span, &log, err, "Failed to fetch ShortLink resource")
+		observability.RecordError(span, &log, err, "Failed to fetch ShortLink resource")
 		return ctrl.Result{}, err
 	}
 

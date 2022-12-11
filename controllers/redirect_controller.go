@@ -30,8 +30,9 @@ import (
 
 	urlshortenerv1alpha1 "github.com/cedi/urlshortener/api/v1alpha1"
 	redirectclient "github.com/cedi/urlshortener/pkg/client"
+	"github.com/cedi/urlshortener/pkg/observability"
 	redirectpkg "github.com/cedi/urlshortener/pkg/redirect"
-	urlshortenertrace "github.com/cedi/urlshortener/pkg/tracing"
+	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 )
 
@@ -41,16 +42,18 @@ type RedirectReconciler struct {
 	rClient *redirectclient.RedirectClient
 
 	scheme *runtime.Scheme
-	o11y   *urlshortenertrace.ShortlinkObservability
+	log    *logr.Logger
+	tracer trace.Tracer
 }
 
 // NewRedirectReconciler returns a new RedirectReconciler
-func NewRedirectReconciler(client client.Client, rClient *redirectclient.RedirectClient, scheme *runtime.Scheme, o11y *urlshortenertrace.ShortlinkObservability) *RedirectReconciler {
+func NewRedirectReconciler(client client.Client, rClient *redirectclient.RedirectClient, scheme *runtime.Scheme, log *logr.Logger, tracer trace.Tracer) *RedirectReconciler {
 	return &RedirectReconciler{
 		client:  client,
 		rClient: rClient,
 		scheme:  scheme,
-		o11y:    o11y,
+		log:     log,
+		tracer:  tracer,
 	}
 }
 
@@ -67,10 +70,10 @@ func NewRedirectReconciler(client client.Client, rClient *redirectclient.Redirec
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
 func (r *RedirectReconciler) Reconcile(c context.Context, req ctrl.Request) (ctrl.Result, error) {
-	ctx, span := r.o11y.Trace.Start(c, "RedirectReconciler.Reconcile", trace.WithAttributes(attribute.String("redirect", req.Name)))
+	ctx, span := r.tracer.Start(c, "RedirectReconciler.Reconcile", trace.WithAttributes(attribute.String("redirect", req.Name)))
 	defer span.End()
 
-	log := r.o11y.Log.WithName("reconciler").WithValues("redirect", req.NamespacedName)
+	log := r.log.WithName("reconciler").WithValues("redirect", req.NamespacedName)
 
 	// get Redirect from etcd
 	redirect, err := r.rClient.GetNamespaced(ctx, req.NamespacedName)
@@ -79,19 +82,19 @@ func (r *RedirectReconciler) Reconcile(c context.Context, req ctrl.Request) (ctr
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
-			urlshortenertrace.RecordInfo(span, &log, "Shortlink resource not found. Ignoring since object must be deleted")
+			observability.RecordInfo(span, &log, "Shortlink resource not found. Ignoring since object must be deleted")
 			return ctrl.Result{}, nil
 		}
 
 		// Error reading the object - requeue the request.
-		urlshortenertrace.RecordError(span, &log, err, "Failed to fetch Redirect resource")
+		observability.RecordError(span, &log, err, "Failed to fetch Redirect resource")
 		return ctrl.Result{}, err
 	}
 
 	// Check if the ingress already exists, if not create a new one
 	ingress, err := r.upsertRedirectIngress(ctx, redirect)
 	if err != nil {
-		urlshortenertrace.RecordError(span, &log, err, "Failed to upsert redirect ingress")
+		observability.RecordError(span, &log, err, "Failed to upsert redirect ingress")
 	}
 
 	// Update the Redirect status with the ingress name and the target
@@ -103,7 +106,7 @@ func (r *RedirectReconciler) Reconcile(c context.Context, req ctrl.Request) (ctr
 	}
 
 	if err = r.client.List(ctx, ingressList, listOpts...); err != nil {
-		urlshortenertrace.RecordError(span, &log, err, "Failed to list ingresses")
+		observability.RecordError(span, &log, err, "Failed to list ingresses")
 		return ctrl.Result{}, err
 	}
 
@@ -112,7 +115,7 @@ func (r *RedirectReconciler) Reconcile(c context.Context, req ctrl.Request) (ctr
 	redirect.Status.Target = ingress.ObjectMeta.Annotations["nginx.ingress.kubernetes.io/permanent-redirect"]
 	err = r.client.Status().Update(ctx, redirect)
 	if err != nil {
-		urlshortenertrace.RecordError(span, &log, err, "Failed to update Redirect status")
+		observability.RecordError(span, &log, err, "Failed to update Redirect status")
 		return ctrl.Result{}, err
 	}
 

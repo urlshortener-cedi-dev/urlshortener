@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/cedi/urlshortener/api/v1alpha1"
-	urlshortenertrace "github.com/cedi/urlshortener/pkg/tracing"
+	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -16,20 +16,22 @@ import (
 // ShortlinkClient is a Kubernetes client for easy CRUD operations
 type ShortlinkClient struct {
 	client client.Client
-	o11y   *urlshortenertrace.ShortlinkObservability
+	log    *logr.Logger
+	tracer trace.Tracer
 }
 
 // NewShortlinkClient creates a new shortlink Client
-func NewShortlinkClient(client client.Client, o11y *urlshortenertrace.ShortlinkObservability) *ShortlinkClient {
+func NewShortlinkClient(client client.Client, log *logr.Logger, tracer trace.Tracer) *ShortlinkClient {
 	return &ShortlinkClient{
 		client: client,
-		o11y:   o11y,
+		log:    log,
+		tracer: tracer,
 	}
 }
 
 // Get returns a ShortLink in the current namespace
 func (c *ShortlinkClient) Get(ct context.Context, name string) (*v1alpha1.ShortLink, error) {
-	ctx, span := c.o11y.Trace.Start(ct, "ShortlinkClient.Get", trace.WithAttributes(attribute.String("name", name)))
+	ctx, span := c.tracer.Start(ct, "ShortlinkClient.Get", trace.WithAttributes(attribute.String("name", name)))
 	defer span.End()
 
 	// try to read the namespace from /var/run
@@ -44,7 +46,7 @@ func (c *ShortlinkClient) Get(ct context.Context, name string) (*v1alpha1.ShortL
 
 // GetNameNamespace returns a Shortlink for a given name in a given namespace
 func (c *ShortlinkClient) GetNameNamespace(ct context.Context, name, namespace string) (*v1alpha1.ShortLink, error) {
-	ctx, span := c.o11y.Trace.Start(ct, "ShortlinkClient.GetNameNamespace", trace.WithAttributes(attribute.String("name", name), attribute.String("namespace", namespace)))
+	ctx, span := c.tracer.Start(ct, "ShortlinkClient.GetNameNamespace", trace.WithAttributes(attribute.String("name", name), attribute.String("namespace", namespace)))
 	defer span.End()
 
 	return c.GetNamespaced(ctx, types.NamespacedName{Name: name, Namespace: namespace})
@@ -52,7 +54,7 @@ func (c *ShortlinkClient) GetNameNamespace(ct context.Context, name, namespace s
 
 // Get returns a Shortlink
 func (c *ShortlinkClient) GetNamespaced(ct context.Context, nameNamespaced types.NamespacedName) (*v1alpha1.ShortLink, error) {
-	ctx, span := c.o11y.Trace.Start(
+	ctx, span := c.tracer.Start(
 		ct, "ShortlinkClient.GetNamespaced",
 		trace.WithAttributes(
 			attribute.String("name", nameNamespaced.Name),
@@ -73,7 +75,7 @@ func (c *ShortlinkClient) GetNamespaced(ct context.Context, nameNamespaced types
 
 // List returns a list of all Shortlinks in the current namespace
 func (c *ShortlinkClient) List(ct context.Context) (*v1alpha1.ShortLinkList, error) {
-	ctx, span := c.o11y.Trace.Start(ct, "ShortlinkClient.List")
+	ctx, span := c.tracer.Start(ct, "ShortlinkClient.List")
 	defer span.End()
 
 	// try to read the namespace from /var/run
@@ -88,7 +90,7 @@ func (c *ShortlinkClient) List(ct context.Context) (*v1alpha1.ShortLinkList, err
 
 // ListNamespaced returns a list of all Shortlinks in a namespace
 func (c *ShortlinkClient) ListNamespaced(ct context.Context, namespace string) (*v1alpha1.ShortLinkList, error) {
-	ctx, span := c.o11y.Trace.Start(ct, "ShortlinkClient.ListNamespaced", trace.WithAttributes(attribute.String("namespace", namespace)))
+	ctx, span := c.tracer.Start(ct, "ShortlinkClient.ListNamespaced", trace.WithAttributes(attribute.String("namespace", namespace)))
 	defer span.End()
 
 	shortlinks := &v1alpha1.ShortLinkList{}
@@ -102,7 +104,7 @@ func (c *ShortlinkClient) ListNamespaced(ct context.Context, namespace string) (
 }
 
 func (c *ShortlinkClient) Update(ct context.Context, shortlink *v1alpha1.ShortLink) error {
-	ctx, span := c.o11y.Trace.Start(ct, "ShortlinkClient.Save", trace.WithAttributes(attribute.String("shortlink", shortlink.ObjectMeta.Name), attribute.String("namespace", shortlink.ObjectMeta.Namespace)))
+	ctx, span := c.tracer.Start(ct, "ShortlinkClient.Save", trace.WithAttributes(attribute.String("shortlink", shortlink.ObjectMeta.Name), attribute.String("namespace", shortlink.ObjectMeta.Namespace)))
 	defer span.End()
 
 	if err := c.client.Update(ctx, shortlink); err != nil {
@@ -114,7 +116,7 @@ func (c *ShortlinkClient) Update(ct context.Context, shortlink *v1alpha1.ShortLi
 }
 
 func (c *ShortlinkClient) UpdateStatus(ct context.Context, shortlink *v1alpha1.ShortLink) error {
-	ctx, span := c.o11y.Trace.Start(ct, "ShortlinkClient.SaveStatus", trace.WithAttributes(attribute.String("shortlink", shortlink.ObjectMeta.Name), attribute.String("namespace", shortlink.ObjectMeta.Namespace)))
+	ctx, span := c.tracer.Start(ct, "ShortlinkClient.SaveStatus", trace.WithAttributes(attribute.String("shortlink", shortlink.ObjectMeta.Name), attribute.String("namespace", shortlink.ObjectMeta.Namespace)))
 	defer span.End()
 
 	err := c.client.Status().Update(ctx, shortlink)
@@ -126,7 +128,7 @@ func (c *ShortlinkClient) UpdateStatus(ct context.Context, shortlink *v1alpha1.S
 }
 
 func (c *ShortlinkClient) IncrementInvocationCount(ct context.Context, shortlink *v1alpha1.ShortLink) error {
-	ctx, span := c.o11y.Trace.Start(ct, "ShortlinkClient.SaveStatus", trace.WithAttributes(attribute.String("shortlink", shortlink.ObjectMeta.Name), attribute.String("namespace", shortlink.ObjectMeta.Namespace)))
+	ctx, span := c.tracer.Start(ct, "ShortlinkClient.SaveStatus", trace.WithAttributes(attribute.String("shortlink", shortlink.ObjectMeta.Name), attribute.String("namespace", shortlink.ObjectMeta.Namespace)))
 	defer span.End()
 
 	shortlink.Status.Count = shortlink.Status.Count + 1
@@ -141,7 +143,7 @@ func (c *ShortlinkClient) IncrementInvocationCount(ct context.Context, shortlink
 
 // Delete deletes a Shortlink object
 func (c *ShortlinkClient) Delete(ct context.Context, shortlink *v1alpha1.ShortLink) error {
-	ctx, span := c.o11y.Trace.Start(ct, "ShortlinkClient.Delete", trace.WithAttributes(attribute.String("name", shortlink.Name), attribute.String("namespace", shortlink.Namespace)))
+	ctx, span := c.tracer.Start(ct, "ShortlinkClient.Delete", trace.WithAttributes(attribute.String("name", shortlink.Name), attribute.String("namespace", shortlink.Namespace)))
 	defer span.End()
 
 	if err := c.client.Delete(ctx, shortlink); err != nil {
@@ -153,7 +155,7 @@ func (c *ShortlinkClient) Delete(ct context.Context, shortlink *v1alpha1.ShortLi
 }
 
 func (c *ShortlinkClient) Create(ct context.Context, shortlink *v1alpha1.ShortLink) error {
-	ctx, span := c.o11y.Trace.Start(ct, "ShortlinkClient.Create", trace.WithAttributes(attribute.String("shortlink", shortlink.ObjectMeta.Name), attribute.String("namespace", shortlink.ObjectMeta.Namespace)))
+	ctx, span := c.tracer.Start(ct, "ShortlinkClient.Create", trace.WithAttributes(attribute.String("shortlink", shortlink.ObjectMeta.Name), attribute.String("namespace", shortlink.ObjectMeta.Namespace)))
 	defer span.End()
 
 	if shortlink.Namespace == "" {

@@ -92,3 +92,5 @@ bin
 
 *.out
 urlshortener
+.DS_Store
+main

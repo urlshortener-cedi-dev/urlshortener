@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 
 	"github.com/cedi/urlshortener/api/v1alpha1"
-	urlshortenertrace "github.com/cedi/urlshortener/pkg/tracing"
+	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -18,19 +18,21 @@ import (
 // RedirectClient is a Kubernetes client for easy CRUD operations
 type RedirectClient struct {
 	client client.Client
-	o11y   *urlshortenertrace.ShortlinkObservability
+	log    *logr.Logger
+	tracer trace.Tracer
 }
 
 // NewRedirectClient creates a new Redirect Client
-func NewRedirectClient(client client.Client, o11y *urlshortenertrace.ShortlinkObservability) *RedirectClient {
+func NewRedirectClient(client client.Client, log *logr.Logger, tracer trace.Tracer) *RedirectClient {
 	return &RedirectClient{
 		client: client,
-		o11y:   o11y,
+		log:    log,
+		tracer: tracer,
 	}
 }
 
 func (c *RedirectClient) Get(ct context.Context, name string) (*v1alpha1.Redirect, error) {
-	ctx, span := c.o11y.Trace.Start(ct, "RedirectClient.Get", trace.WithAttributes(attribute.String("name", name)))
+	ctx, span := c.tracer.Start(ct, "RedirectClient.Get", trace.WithAttributes(attribute.String("name", name)))
 	defer span.End()
 
 	// try to read the namespace from /var/run
@@ -45,7 +47,7 @@ func (c *RedirectClient) Get(ct context.Context, name string) (*v1alpha1.Redirec
 
 // GetNameNamespace returns a Redirect for a given name in a given namespace
 func (c *RedirectClient) GetNameNamespace(ct context.Context, name, namespace string) (*v1alpha1.Redirect, error) {
-	ctx, span := c.o11y.Trace.Start(ct, "RedirectClient.GetNameNamespace", trace.WithAttributes(attribute.String("name", name), attribute.String("namespace", namespace)))
+	ctx, span := c.tracer.Start(ct, "RedirectClient.GetNameNamespace", trace.WithAttributes(attribute.String("name", name), attribute.String("namespace", namespace)))
 	defer span.End()
 
 	return c.GetNamespaced(ctx, types.NamespacedName{Name: name, Namespace: namespace})
@@ -53,7 +55,7 @@ func (c *RedirectClient) GetNameNamespace(ct context.Context, name, namespace st
 
 // Get returns a Redirect
 func (c *RedirectClient) GetNamespaced(ct context.Context, nameNamespaced types.NamespacedName) (*v1alpha1.Redirect, error) {
-	ctx, span := c.o11y.Trace.Start(
+	ctx, span := c.tracer.Start(
 		ct, "RedirectClient.GetNamespaced",
 		trace.WithAttributes(
 			attribute.String("name", nameNamespaced.Name),
@@ -75,7 +77,7 @@ func (c *RedirectClient) GetNamespaced(ct context.Context, nameNamespaced types.
 
 // List returns a list of all Redirect
 func (c *RedirectClient) List(ct context.Context) (*v1alpha1.RedirectList, error) {
-	ctx, span := c.o11y.Trace.Start(ct, "RedirectClient.List")
+	ctx, span := c.tracer.Start(ct, "RedirectClient.List")
 	defer span.End()
 
 	Redirects := &v1alpha1.RedirectList{}
@@ -92,7 +94,7 @@ func (c *RedirectClient) List(ct context.Context) (*v1alpha1.RedirectList, error
 // List returns a list of all Redirect that match the label Redirect with the parameter label
 // ToDo: Rewrite and come up with a better way. This only works client-side and is absolutely ugly and inefficient
 func (c *RedirectClient) Query(ct context.Context, label string) (*v1alpha1.RedirectList, error) {
-	ctx, span := c.o11y.Trace.Start(ct, "RedirectClient.Query", trace.WithAttributes(attribute.String("label", "Redirect"), attribute.String("labelValue", label)))
+	ctx, span := c.tracer.Start(ct, "RedirectClient.Query", trace.WithAttributes(attribute.String("label", "Redirect"), attribute.String("labelValue", label)))
 	defer span.End()
 
 	Redirects := &v1alpha1.RedirectList{}
@@ -114,7 +116,7 @@ func (c *RedirectClient) Query(ct context.Context, label string) (*v1alpha1.Redi
 }
 
 func (c *RedirectClient) Save(ct context.Context, Redirect *v1alpha1.Redirect) error {
-	ctx, span := c.o11y.Trace.Start(ct, "RedirectClient.Save", trace.WithAttributes(attribute.String("Redirect", Redirect.ObjectMeta.Name), attribute.String("namespace", Redirect.ObjectMeta.Namespace)))
+	ctx, span := c.tracer.Start(ct, "RedirectClient.Save", trace.WithAttributes(attribute.String("Redirect", Redirect.ObjectMeta.Name), attribute.String("namespace", Redirect.ObjectMeta.Namespace)))
 	defer span.End()
 
 	err := c.client.Update(ctx, Redirect)
@@ -126,7 +128,7 @@ func (c *RedirectClient) Save(ct context.Context, Redirect *v1alpha1.Redirect) e
 }
 
 func (c *RedirectClient) SaveStatus(ct context.Context, Redirect *v1alpha1.Redirect) error {
-	ctx, span := c.o11y.Trace.Start(ct, "RedirectClient.SaveStatus", trace.WithAttributes(attribute.String("Redirect", Redirect.ObjectMeta.Name), attribute.String("namespace", Redirect.ObjectMeta.Namespace)))
+	ctx, span := c.tracer.Start(ct, "RedirectClient.SaveStatus", trace.WithAttributes(attribute.String("Redirect", Redirect.ObjectMeta.Name), attribute.String("namespace", Redirect.ObjectMeta.Namespace)))
 	defer span.End()
 
 	err := c.client.Status().Update(ctx, Redirect)

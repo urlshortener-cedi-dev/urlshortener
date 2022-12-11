@@ -42,15 +42,14 @@ import (
 	v1alpha1 "github.com/cedi/urlshortener/api/v1alpha1"
 	"github.com/cedi/urlshortener/controllers"
 	shortlinkClient "github.com/cedi/urlshortener/pkg/client"
-	urlShortenerController "github.com/cedi/urlshortener/pkg/controller"
-	router "github.com/cedi/urlshortener/pkg/router"
-	tracing "github.com/cedi/urlshortener/pkg/tracing"
+	apiController "github.com/cedi/urlshortener/pkg/controller"
+	"github.com/cedi/urlshortener/pkg/observability"
+	"github.com/cedi/urlshortener/pkg/router"
 	//+kubebuilder:scaffold:imports
 )
 
 var (
 	scheme         = runtime.NewScheme()
-	setupLog       = ctrl.Log.WithName("setup")
 	serviceName    = "urlshortener"
 	serviceVersion = "1.0.0"
 )
@@ -86,17 +85,20 @@ func main() {
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
+	// Initialize Logging
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	setupLog := ctrl.Log.WithName("setup")
 	shutdownLog := ctrl.Log.WithName("shutdown")
 
-	o11y, err := tracing.NewShortlinkObservability(serviceName, serviceVersion, ctrl.Log)
+	// Initialize Tracing (OpenTelemetry)
+	traceProvider, tracer, err := observability.InitTracer(serviceName, serviceVersion)
 	if err != nil {
-		setupLog.Error(err, "failed initializing observability")
+		setupLog.Error(err, "failed initializing tracing")
 		os.Exit(1)
 	}
 
 	defer func() {
-		if err := o11y.ShutdownTraceProvider(context.Background()); err != nil {
+		if err := traceProvider.Shutdown(context.Background()); err != nil {
 			shutdownLog.Error(err, "Error shutting down tracer provider")
 		}
 	}()
@@ -117,18 +119,21 @@ func main() {
 
 	sClient := shortlinkClient.NewShortlinkClient(
 		mgr.GetClient(),
-		o11y,
+		&ctrl.Log,
+		tracer,
 	)
 
 	rClient := shortlinkClient.NewRedirectClient(
 		mgr.GetClient(),
-		o11y,
+		&ctrl.Log,
+		tracer,
 	)
 
 	shortlinkReconciler := controllers.NewShortLinkReconciler(
 		sClient,
 		mgr.GetScheme(),
-		o11y,
+		&ctrl.Log,
+		tracer,
 	)
 	if err = shortlinkReconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ShortLink")
@@ -138,7 +143,8 @@ func main() {
 		mgr.GetClient(),
 		rClient,
 		mgr.GetScheme(),
-		o11y,
+		&ctrl.Log,
+		tracer,
 	)
 	if err = redirectReconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Redirect")
@@ -164,7 +170,11 @@ func main() {
 		}
 	}()
 
-	shortlinkController := urlShortenerController.NewShortlinkController(o11y, sClient)
+	shortlinkController := apiController.NewShortlinkController(
+		&ctrl.Log,
+		tracer,
+		sClient,
+	)
 
 	// Init Gin Framework
 	gin.SetMode(gin.ReleaseMode)
