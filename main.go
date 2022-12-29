@@ -18,7 +18,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"net/http"
 	"os"
@@ -45,6 +44,8 @@ import (
 	apiController "github.com/cedi/urlshortener/pkg/controller"
 	"github.com/cedi/urlshortener/pkg/observability"
 	"github.com/cedi/urlshortener/pkg/router"
+
+	"github.com/pkg/errors"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -76,12 +77,17 @@ func main() {
 	var metricsAddr string
 	var probeAddr string
 	var bindAddr string
+	var namespaced bool
+
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":9110", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":9081", "The address the probe endpoint binds to.")
 	flag.StringVar(&bindAddr, "bind-address", ":8443", "The address the service binds to.")
+	flag.BoolVar(&namespaced, "namespaced", true, "Restrict the urlshortener to only list resources in the current namespace")
+
 	opts := zap.Options{
-		Development: false, // ToDo: Set to false to switch to JSON log format
+		Development: false, // false = production mode = JSON log format
 	}
+
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
@@ -103,6 +109,24 @@ func main() {
 		}
 	}()
 
+	// Start namespaced
+	namespace := ""
+
+	if namespaced {
+		_, span := tracer.Start(context.Background(), "main.loadNamespace")
+		// try to read the namespace from /var/run
+		namespaceByte, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+		if err != nil {
+			span.RecordError(err)
+			setupLog.Error(err, "Unable to read current namespace")
+			os.Exit(1)
+		}
+		span.End()
+		namespace = string(namespaceByte)
+	}
+
+	_, span := tracer.Start(context.Background(), "main.startManager")
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                        scheme,
 		MetricsBindAddress:            metricsAddr,
@@ -111,8 +135,11 @@ func main() {
 		LeaderElection:                false,
 		LeaderElectionID:              "a9a252fc.cedi.dev",
 		LeaderElectionReleaseOnCancel: false,
+		Namespace:                     string(namespace),
 	})
+
 	if err != nil {
+		span.RecordError(err)
 		setupLog.Error(err, "unable to start urlshortener")
 		os.Exit(1)
 	}
@@ -135,10 +162,13 @@ func main() {
 		&ctrl.Log,
 		tracer,
 	)
+
 	if err = shortlinkReconciler.SetupWithManager(mgr); err != nil {
+		span.RecordError(err)
 		setupLog.Error(err, "unable to create controller", "controller", "ShortLink")
 		os.Exit(1)
 	}
+
 	redirectReconciler := controllers.NewRedirectReconciler(
 		mgr.GetClient(),
 		rClient,
@@ -146,16 +176,21 @@ func main() {
 		&ctrl.Log,
 		tracer,
 	)
+
 	if err = redirectReconciler.SetupWithManager(mgr); err != nil {
+		span.RecordError(err)
 		setupLog.Error(err, "unable to create controller", "controller", "Redirect")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
 
+	span.End()
+
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
 		os.Exit(1)
 	}
+
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up ready check")
 		os.Exit(1)

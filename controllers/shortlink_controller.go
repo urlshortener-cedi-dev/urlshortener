@@ -99,7 +99,7 @@ func (r *ShortLinkReconciler) Reconcile(c context.Context, req ctrl.Request) (ct
 		}
 	}
 
-	if shortlinkList, err := r.client.List(ctx); shortlinkList != nil && err == nil {
+	if shortlinkList, err := r.client.ListNamespaced(ctx, req.Namespace); shortlinkList != nil && err == nil {
 		activeShortlinks.Set(float64(len(shortlinkList.Items)))
 
 		for _, shortlink := range shortlinkList.Items {

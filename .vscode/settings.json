@@ -9,6 +9,7 @@
         "Nosniff",
         "otel",
         "otelgin",
+        "serrors",
         "shortlink",
         "shortlinks",
         "swaggo",

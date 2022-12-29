@@ -1,5 +1,5 @@
 # Build the urlshortener binary
-FROM golang:1.18 as builder
+FROM golang:1.19 as builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
@@ -34,4 +34,4 @@ USER 65532:65532
 
 EXPOSE 8123
 
-ENTRYPOINT ["/urlshortener --bind-address=:8123"]
+#ENTRYPOINT ["/urlshortener --bind-address=:8123"]

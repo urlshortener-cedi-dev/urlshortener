@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"io/ioutil"
+	"os"
 
 	"github.com/cedi/urlshortener/api/v1alpha1"
 	"github.com/go-logr/logr"
@@ -56,7 +57,8 @@ func (c *RedirectClient) GetNameNamespace(ct context.Context, name, namespace st
 // Get returns a Redirect
 func (c *RedirectClient) GetNamespaced(ct context.Context, nameNamespaced types.NamespacedName) (*v1alpha1.Redirect, error) {
 	ctx, span := c.tracer.Start(
-		ct, "RedirectClient.GetNamespaced",
+		ct,
+		"RedirectClient.GetNamespaced",
 		trace.WithAttributes(
 			attribute.String("name", nameNamespaced.Name),
 			attribute.String("namespace", nameNamespaced.Namespace),
@@ -76,13 +78,52 @@ func (c *RedirectClient) GetNamespaced(ct context.Context, nameNamespaced types.
 }
 
 // List returns a list of all Redirect
-func (c *RedirectClient) List(ct context.Context) (*v1alpha1.RedirectList, error) {
+func (c *RedirectClient) ListAll(ct context.Context) (*v1alpha1.RedirectList, error) {
 	ctx, span := c.tracer.Start(ct, "RedirectClient.List")
 	defer span.End()
 
 	Redirects := &v1alpha1.RedirectList{}
 
 	err := c.client.List(ctx, Redirects)
+	if err != nil {
+		span.RecordError(err)
+		return nil, err
+	}
+
+	return Redirects, nil
+}
+
+// List returns a list of all Redirect in the current namespace
+func (c *RedirectClient) List(ct context.Context) (*v1alpha1.RedirectList, error) {
+	ctx, span := c.tracer.Start(ct, "RedirectClient.List")
+	defer span.End()
+
+	// try to read the namespace from /var/run
+	namespace, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+	if err != nil {
+		span.RecordError(err)
+		return nil, errors.Wrap(err, "Unable to read current namespace")
+	}
+
+	return c.ListNamespaced(ctx, string(namespace))
+}
+
+// List returns a list of Redirects in a Namespace
+func (c *RedirectClient) ListNamespaced(ct context.Context, namespace string) (*v1alpha1.RedirectList, error) {
+	ctx, span := c.tracer.Start(
+		ct,
+		"RedirectClient.List",
+		trace.WithAttributes(
+			attribute.String("namespace", namespace),
+		),
+	)
+	defer span.End()
+
+	Redirects := &v1alpha1.RedirectList{}
+
+	err := c.client.List(ctx, Redirects, &client.ListOptions{
+		Namespace: namespace,
+	})
 	if err != nil {
 		span.RecordError(err)
 		return nil, err
