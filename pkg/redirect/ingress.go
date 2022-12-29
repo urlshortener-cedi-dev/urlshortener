@@ -2,6 +2,7 @@ package redirect
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/cedi/urlshortener/api/v1alpha1"
@@ -24,7 +25,7 @@ func NewRedirectIngress(ing *networkingv1.Ingress, redirect *v1alpha1.Redirect) 
 		Labels:    GetLabelsForRedirect(redirect.Name),
 		Annotations: map[string]string{
 			"nginx.ingress.kubernetes.io/rewrite-target":          "/",
-			"nginx.ingress.kubernetes.io/permanent-redirect":      fmt.Sprintf("http://%s$request_uri", redirect.Spec.Target),
+			"nginx.ingress.kubernetes.io/permanent-redirect":      normalizeUrl(redirect.Spec.Target),
 			"nginx.ingress.kubernetes.io/permanent-redirect-code": fmt.Sprintf("%d", redirect.Spec.Code),
 		},
 	}
@@ -89,4 +90,15 @@ func GetIngressNames(ingresses []networkingv1.Ingress) []string {
 	}
 
 	return ingressNames
+}
+
+func normalizeUrl(redirectTarget string) string {
+	// Regex Matches if the URL contains `://` to indicate the protocol
+	r := regexp.MustCompile(`^(.+)(:\/\/).*$`)
+	if !r.Match([]byte(redirectTarget)) {
+		// if the protocol is not indicated by `://` this prepends `http://`
+		redirectTarget = fmt.Sprintf("http://%s$request_uri", redirectTarget)
+	}
+
+	return redirectTarget
 }
