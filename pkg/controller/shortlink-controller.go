@@ -73,9 +73,6 @@ func (s *ShortlinkController) HandleShortLink(c *gin.Context) {
 		return
 	}
 
-	// Increase hit counter
-	s.client.IncrementInvocationCount(ctx, shortlink)
-
 	span.SetAttributes(
 		attribute.String("Target", shortlink.Spec.Target),
 		attribute.Int64("RedirectAfter", shortlink.Spec.RedirectAfter),
@@ -94,76 +91,26 @@ func (s *ShortlinkController) HandleShortLink(c *gin.Context) {
 	}
 
 	if shortlink.Spec.Code != 200 {
+		// Redirect
 		c.Redirect(shortlink.Spec.Code, target)
-		return
+	} else {
+		// Redirect via JS/HTML
+		c.HTML(
+			// Set the HTTP status to 200 (OK)
+			http.StatusOK,
+
+			// Use the index.html template
+			"redirect.html",
+
+			// Pass the data that the page uses (in this case, 'title')
+			gin.H{
+				"redirectFrom":  c.Request.URL.Path,
+				"redirectTo":    target,
+				"redirectAfter": shortlink.Spec.RedirectAfter,
+			},
+		)
 	}
 
-	c.HTML(
-		// Set the HTTP status to 200 (OK)
-		http.StatusOK,
-
-		// Use the index.html template
-		"redirect.html",
-
-		// Pass the data that the page uses (in this case, 'title')
-		gin.H{
-			"redirectFrom":  c.Request.URL.Path,
-			"redirectTo":    target,
-			"redirectAfter": shortlink.Spec.RedirectAfter,
-		},
-	)
-}
-
-// HandleListShortLink handles the listing of
-// @BasePath /api/v1/
-// @Summary       list shortlinks
-// @Schemes       http https
-// @Description   list shortlinks
-// @Produce       text/plain
-// @Produce       application/json
-// @Success       200         {object} []ShortLink "Success"
-// @Failure       404         {object} int         "NotFound"
-// @Failure       500         {object} int         "InternalServerError"
-// @Tags api/v1/
-// @Router /api/v1/shortlink/ [get]
-func (s *ShortlinkController) HandleListShortLink(c *gin.Context) {
-	contentType := c.Request.Header.Get("accept")
-
-	// Call the HTML method of the Context to render a template
-	ctx, span := s.tracer.Start(c.Request.Context(), "ShortlinkController.HandleListShortLink", trace.WithAttributes(attribute.String("accepted_content_type", contentType)))
-	defer span.End()
-
-	shortlinkList, err := s.client.List(ctx)
-	if err != nil {
-		observability.RecordError(span, s.log, err, "Failed to list ShortLinks")
-
-		statusCode := http.StatusInternalServerError
-
-		if strings.Contains(err.Error(), "not found") {
-			statusCode = http.StatusNotFound
-		}
-
-		ginReturnError(c, statusCode, contentType, err.Error())
-		return
-	}
-
-	targetList := make([]ShortLink, len(shortlinkList.Items))
-
-	for idx, shortlink := range shortlinkList.Items {
-		targetList[idx] = ShortLink{
-			Name:   shortlink.ObjectMeta.Name,
-			Spec:   shortlink.Spec,
-			Status: shortlink.Status,
-		}
-	}
-
-	if contentType == ContentTypeApplicationJSON {
-		c.JSON(http.StatusOK, targetList)
-	} else if contentType == ContentTypeTextPlain {
-		shortLinks := ""
-		for _, shortlink := range targetList {
-			shortLinks += fmt.Sprintf("%s: %s\n", shortlink.Name, shortlink.Spec.Target)
-		}
-		c.Data(http.StatusOK, contentType, []byte(shortLinks))
-	}
+	// Increase hit counter
+	s.client.IncrementInvocationCount(ctx, shortlink)
 }
