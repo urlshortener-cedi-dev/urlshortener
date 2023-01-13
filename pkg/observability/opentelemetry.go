@@ -3,6 +3,7 @@ package observability
 import (
 	"context"
 	"os"
+	"strings"
 
 	"github.com/MrAlias/flow"
 	"github.com/pkg/errors"
@@ -11,16 +12,27 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	sdkTrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
-func InitTracer(serviceName, serviceVersion string) (*sdktrace.TracerProvider, trace.Tracer, error) {
-	client := otlptracehttp.NewClient(
-		otlptracehttp.WithEndpoint("localhost:4318"),
-		otlptracehttp.WithInsecure(),
-	)
+func InitTracer(serviceName, serviceVersion string) (*sdkTrace.TracerProvider, trace.Tracer, error) {
+
+	otlpEndpoint, ok := os.LookupEnv("OTLP_ENDPOINT")
+	otlpInsecure := os.Getenv("OTLP_INSECURE")
+
+	otlpOptions := make([]otlptracehttp.Option, 0)
+
+	if ok {
+		otlpOptions = append(otlpOptions, otlptracehttp.WithEndpoint(otlpEndpoint))
+
+		if strings.ToLower(otlpInsecure) == "true" {
+			otlpOptions = append(otlpOptions, otlptracehttp.WithInsecure())
+		}
+	}
+
+	client := otlptracehttp.NewClient(otlpOptions...)
 
 	otlptracehttpExporter, err := otlptrace.New(context.TODO(), client)
 	if err != nil {
@@ -39,10 +51,10 @@ func InitTracer(serviceName, serviceVersion string) (*sdktrace.TracerProvider, t
 		semconv.ServiceInstanceIDKey.String(hostname),
 	)
 
-	traceProvider := sdktrace.NewTracerProvider(
+	traceProvider := sdkTrace.NewTracerProvider(
 		flow.WithBatcher(otlptracehttpExporter),
-		sdktrace.WithSampler(sdktrace.AlwaysSample()),
-		sdktrace.WithResource(resources),
+		sdkTrace.WithSampler(sdkTrace.AlwaysSample()),
+		sdkTrace.WithResource(resources),
 	)
 
 	trace := traceProvider.Tracer(
