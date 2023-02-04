@@ -72,21 +72,39 @@ spec:
                 - 307
                 - 308
                 type: integer
+              owner:
+                description: Owner is the GitHub user id which created the shortlink
+                type: integer
+              owners:
+                description: Co-Owners are the GitHub user ids which can also administrate
+                  this shortlink
+                items:
+                  type: integer
+                type: array
               target:
                 description: Target specifies the target to which we will redirect
                 minLength: 1
                 type: string
             required:
+            - owner
             - target
             type: object
           status:
             description: ShortLinkStatus defines the observed state of ShortLink
             properties:
+              changedby:
+                description: ChangedBy indicates who (GitHub User Id) changed the
+                  Shortlink last
+                type: integer
               count:
                 default: 0
                 description: Count represents how often this ShortLink has been called
                 minimum: 0
                 type: integer
+              lastmodified:
+                description: LastModified is a date-time when the ShortLink was last
+                  modified
+                type: string
             required:
             - count
             type: object

@@ -22,6 +22,14 @@ import (
 
 // ShortLinkSpec defines the desired state of ShortLink
 type ShortLinkSpec struct {
+	// Owner is the GitHub user id which created the shortlink
+	// +kubebuilder:validation:Required
+	Owner int `json:"owner"`
+
+	// Co-Owners are the GitHub user ids which can also administrate this shortlink
+	// +kubebuilder:validation:Optional
+	CoOwners []int `json:"owners,omitempty"`
+
 	// Target specifies the target to which we will redirect
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
@@ -46,6 +54,15 @@ type ShortLinkStatus struct {
 	// +kubebuilder:default:=0
 	// +kubebuilder:validation:Minimum=0
 	Count int `json:"count"`
+
+	//LastModified is a date-time when the ShortLink was last modified
+	// +kubebuilder:validation:Format:date-time
+	// +kubebuilder:validation:Optional
+	LastModified string `json:"lastmodified"`
+
+	// ChangedBy indicates who (GitHub User Id) changed the Shortlink last
+	// +kubebuilder:validation:Optional
+	ChangedBy int `json:"changedby"`
 }
 
 // ShortLink is the Schema for the shortlinks API
