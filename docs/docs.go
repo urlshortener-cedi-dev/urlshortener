@@ -24,42 +24,6 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/v1/shortlink/": {
-            "get": {
-                "description": "list shortlinks",
-                "produces": [
-                    "text/plain",
-                    "application/json"
-                ],
-                "tags": [
-                    "api/v1/"
-                ],
-                "summary": "list shortlinks",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/controller.ShortLink"
-                            }
-                        }
-                    },
-                    "404": {
-                        "description": "NotFound",
-                        "schema": {
-                            "type": "integer"
-                        }
-                    },
-                    "500": {
-                        "description": "InternalServerError",
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                }
-            }
-        },
         "/{shortlink}": {
             "get": {
                 "description": "redirect to target as per configuration of the shortlink",
@@ -146,59 +110,6 @@ const docTemplate = `{
                             "type": "integer"
                         }
                     }
-                }
-            }
-        }
-    },
-    "definitions": {
-        "controller.ShortLink": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string"
-                },
-                "spec": {
-                    "$ref": "#/definitions/v1alpha1.ShortLinkSpec"
-                },
-                "status": {
-                    "$ref": "#/definitions/v1alpha1.ShortLinkStatus"
-                }
-            }
-        },
-        "v1alpha1.ShortLinkSpec": {
-            "type": "object",
-            "properties": {
-                "after": {
-                    "description": "RedirectAfter specifies after how many seconds to redirect (Default=3)\n+kubebuilder:default:=0\n+kubebuilder:validation:Minimum=0\n+kubebuilder:validation:Maximum=99",
-                    "type": "integer"
-                },
-                "code": {
-                    "description": "Code is the URL Code used for the redirection.\nleave on default (307) when using the HTML behavior. However, if you whish to use a HTTP 3xx redirect, set to the appropriate 3xx status code\n+kubebuilder:validation:Enum=200;300;301;302;303;304;305;307;308\n+kubebuilder:default:=307",
-                    "type": "integer",
-                    "enum": [
-                        307,
-                        200,
-                        300,
-                        301,
-                        302,
-                        303,
-                        304,
-                        305,
-                        308
-                    ]
-                },
-                "target": {
-                    "description": "Target specifies the target to which we will redirect\n+kubebuilder:validation:Required\n+kubebuilder:validation:MinLength=1",
-                    "type": "string"
-                }
-            }
-        },
-        "v1alpha1.ShortLinkStatus": {
-            "type": "object",
-            "properties": {
-                "count": {
-                    "description": "Count represents how often this ShortLink has been called\n+kubebuilder:default:=0\n+kubebuilder:validation:Minimum=0",
-                    "type": "integer"
                 }
             }
         }
