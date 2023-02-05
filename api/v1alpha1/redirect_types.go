@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"golang.org/x/exp/slices"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -86,4 +87,8 @@ type RedirectList struct {
 
 func init() {
 	SchemeBuilder.Register(&Redirect{}, &RedirectList{})
+}
+
+func (s *ShortLink) IsOwnedBy(uid int) bool {
+	return s.Spec.Owner == uid || slices.Contains(s.Spec.CoOwners, uid)
 }
