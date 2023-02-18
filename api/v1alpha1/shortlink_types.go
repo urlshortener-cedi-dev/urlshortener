@@ -60,9 +60,9 @@ type ShortLinkStatus struct {
 	// +kubebuilder:validation:Optional
 	LastModified string `json:"lastmodified"`
 
-	// ChangedBy indicates who (GitHub User Id) changed the Shortlink last
+	// ChangedBy indicates who (GitHub User) changed the Shortlink last
 	// +kubebuilder:validation:Optional
-	ChangedBy int `json:"changedby"`
+	ChangedBy string `json:"changedby"`
 }
 
 // ShortLink is the Schema for the shortlinks API
