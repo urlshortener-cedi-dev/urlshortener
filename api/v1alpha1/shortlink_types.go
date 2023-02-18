@@ -22,13 +22,13 @@ import (
 
 // ShortLinkSpec defines the desired state of ShortLink
 type ShortLinkSpec struct {
-	// Owner is the GitHub user id which created the shortlink
+	// Owner is the GitHub user name which created the shortlink
 	// +kubebuilder:validation:Required
-	Owner int `json:"owner"`
+	Owner string `json:"owner"`
 
-	// Co-Owners are the GitHub user ids which can also administrate this shortlink
+	// Co-Owners are the GitHub user name which can also administrate this shortlink
 	// +kubebuilder:validation:Optional
-	CoOwners []int `json:"owners,omitempty"`
+	CoOwners []string `json:"owners,omitempty"`
 
 	// Target specifies the target to which we will redirect
 	// +kubebuilder:validation:Required
@@ -45,7 +45,7 @@ type ShortLinkSpec struct {
 	// leave on default (307) when using the HTML behavior. However, if you whish to use a HTTP 3xx redirect, set to the appropriate 3xx status code
 	// +kubebuilder:validation:Enum=200;300;301;302;303;304;305;307;308
 	// +kubebuilder:default:=307
-	Code int `json:"code,omitempty" enums:"307,200,300,301,302,303,304,305,308"`
+	Code int `json:"code,omitempty" enums:"200,300,301,302,303,304,305,307,308"`
 }
 
 // ShortLinkStatus defines the observed state of ShortLink

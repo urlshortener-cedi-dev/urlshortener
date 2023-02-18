@@ -184,7 +184,7 @@ func (in *ShortLinkSpec) DeepCopyInto(out *ShortLinkSpec) {
 	*out = *in
 	if in.CoOwners != nil {
 		in, out := &in.CoOwners, &out.CoOwners
-		*out = make([]int, len(*in))
+		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
 }

@@ -89,6 +89,6 @@ func init() {
 	SchemeBuilder.Register(&Redirect{}, &RedirectList{})
 }
 
-func (s *ShortLink) IsOwnedBy(uid int) bool {
-	return s.Spec.Owner == uid || slices.Contains(s.Spec.CoOwners, uid)
+func (s *ShortLink) IsOwnedBy(username string) bool {
+	return s.Spec.Owner == username || slices.Contains(s.Spec.CoOwners, username)
 }
