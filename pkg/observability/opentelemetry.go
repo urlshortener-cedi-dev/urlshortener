@@ -30,6 +30,9 @@ func InitTracer(serviceName, serviceVersion string) (*sdkTrace.TracerProvider, t
 		if strings.ToLower(otlpInsecure) == "true" {
 			otlpOptions = append(otlpOptions, otlptracehttp.WithInsecure())
 		}
+	} else {
+		otlpOptions = append(otlpOptions, otlptracehttp.WithEndpoint("localhost:4318"))
+		otlpOptions = append(otlpOptions, otlptracehttp.WithInsecure())
 	}
 
 	client := otlptracehttp.NewClient(otlpOptions...)
