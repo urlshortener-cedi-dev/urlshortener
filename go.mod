@@ -13,11 +13,11 @@ require (
 	github.com/swaggo/gin-swagger v1.5.3
 	github.com/swaggo/swag v1.8.10
 	go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin v0.39.0
-	go.opentelemetry.io/otel v1.13.0
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.13.0
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.13.0
-	go.opentelemetry.io/otel/sdk v1.13.0
-	go.opentelemetry.io/otel/trace v1.13.0
+	go.opentelemetry.io/otel v1.14.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.14.0
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.14.0
+	go.opentelemetry.io/otel/sdk v1.14.0
+	go.opentelemetry.io/otel/trace v1.14.0
 	golang.org/x/exp v0.0.0-20230213192124-5e25df0256eb
 	k8s.io/api v0.26.1
 	k8s.io/apimachinery v0.26.1
@@ -77,7 +77,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.9 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.13.0 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/internal/retry v1.14.0 // indirect
 	go.opentelemetry.io/proto/otlp v0.19.0 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
