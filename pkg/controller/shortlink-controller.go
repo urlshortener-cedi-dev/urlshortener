@@ -63,11 +63,13 @@ func (s *ShortlinkController) HandleShortLink(c *gin.Context) {
 
 	shortlink, err := s.client.Get(ctx, shortlinkName)
 	if err != nil {
-		observability.RecordError(span, s.log, err, "Failed to get ShortLink")
-
 		if strings.Contains(err.Error(), "not found") {
+			observability.RecordError(span, s.log, err, "Path not found")
+			span.SetAttributes(attribute.String("path", c.Request.URL.Path))
+
 			c.HTML(http.StatusNotFound, "404.html", gin.H{})
 		} else {
+			observability.RecordError(span, s.log, err, "Failed to get ShortLink")
 			c.HTML(http.StatusInternalServerError, "500.html", gin.H{})
 		}
 		return
