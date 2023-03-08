@@ -36,28 +36,39 @@ import (
 // @Tags api/v1/
 // @Router /api/v1/shortlink/{shortlink} [post]
 // @Security bearerAuth
-func (s *ShortlinkController) HandleCreateShortLink(c *gin.Context) {
-	shortlinkName := c.Param("shortlink")
-	contentType := c.Request.Header.Get("accept")
+func (s *ShortlinkController) HandleCreateShortLink(ct *gin.Context) {
+	shortlinkName := ct.Param("shortlink")
+	contentType := ct.Request.Header.Get("accept")
 
-	// Call the HTML method of the Context to render a template
-	ctx, span := s.tracer.Start(c.Request.Context(), "ShortlinkController.HandleGetShortLink", trace.WithAttributes(attribute.String("shortlink", shortlinkName), attribute.String("accepted_content_type", contentType)))
-	defer span.End()
+	ctx := ct.Request.Context()
+	span := trace.SpanFromContext(ctx)
 
-	bearerToken := c.Request.Header.Get("Authorization")
+	// Check if the span was sampled and is recording the data
+	if !span.IsRecording() {
+		ctx, span = s.tracer.Start(ctx, "ShortlinkController.HandleCreateShortLink")
+		defer span.End()
+	}
+
+	span.SetAttributes(
+		attribute.String("shortlink", shortlinkName),
+		attribute.String("content_type", contentType),
+		attribute.String("referrer", ct.Request.Referer()),
+	)
+
+	bearerToken := ct.Request.Header.Get("Authorization")
 	bearerToken = strings.TrimPrefix(bearerToken, "Bearer")
 	bearerToken = strings.TrimPrefix(bearerToken, "token")
 	if len(bearerToken) == 0 {
 		err := fmt.Errorf("no credentials provided")
 		span.RecordError(err)
-		ginReturnError(c, http.StatusUnauthorized, contentType, err.Error())
+		ginReturnError(ct, http.StatusUnauthorized, contentType, err.Error())
 		return
 	}
 
 	githubUser, err := getGitHubUserInfo(ctx, bearerToken)
 	if err != nil {
 		span.RecordError(err)
-		ginReturnError(c, http.StatusUnauthorized, contentType, err.Error())
+		ginReturnError(ct, http.StatusUnauthorized, contentType, err.Error())
 		return
 	}
 
@@ -68,29 +79,29 @@ func (s *ShortlinkController) HandleCreateShortLink(c *gin.Context) {
 		Spec: v1alpha1.ShortLinkSpec{},
 	}
 
-	jsonData, err := io.ReadAll(c.Request.Body)
+	jsonData, err := io.ReadAll(ct.Request.Body)
 	if err != nil {
 		observability.RecordError(span, s.log, err, "Failed to read request-body")
-		ginReturnError(c, http.StatusInternalServerError, contentType, err.Error())
+		ginReturnError(ct, http.StatusInternalServerError, contentType, err.Error())
 		return
 	}
 
 	if err := json.Unmarshal([]byte(jsonData), &shortlink.Spec); err != nil {
 		observability.RecordError(span, s.log, err, "Failed to read spec-json")
-		ginReturnError(c, http.StatusInternalServerError, contentType, err.Error())
+		ginReturnError(ct, http.StatusInternalServerError, contentType, err.Error())
 		return
 	}
 
 	if err := s.authenticatedClient.Create(ctx, githubUser.Login, &shortlink); err != nil {
 		observability.RecordError(span, s.log, err, "Failed to create ShortLink")
-		ginReturnError(c, http.StatusInternalServerError, contentType, err.Error())
+		ginReturnError(ct, http.StatusInternalServerError, contentType, err.Error())
 		return
 	}
 
 	if contentType == ContentTypeTextPlain {
-		c.Data(http.StatusOK, contentType, []byte(fmt.Sprintf("%s: %s\n", shortlink.Name, shortlink.Spec.Target)))
+		ct.Data(http.StatusOK, contentType, []byte(fmt.Sprintf("%s: %s\n", shortlink.Name, shortlink.Spec.Target)))
 	} else if contentType == ContentTypeApplicationJSON {
-		c.JSON(http.StatusOK, ShortLink{
+		ct.JSON(http.StatusOK, ShortLink{
 			Name:   shortlink.Name,
 			Spec:   shortlink.Spec,
 			Status: shortlink.Status,

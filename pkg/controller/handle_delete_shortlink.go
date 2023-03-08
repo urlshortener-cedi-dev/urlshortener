@@ -26,29 +26,39 @@ import (
 // @Tags api/v1/
 // @Router /api/v1/shortlink/{shortlink} [delete]
 // @Security bearerAuth
-func (s *ShortlinkController) HandleDeleteShortLink(c *gin.Context) {
-	shortlinkName := c.Param("shortlink")
+func (s *ShortlinkController) HandleDeleteShortLink(ct *gin.Context) {
+	shortlinkName := ct.Param("shortlink")
+	contentType := ct.Request.Header.Get("accept")
 
-	contentType := c.Request.Header.Get("accept")
+	ctx := ct.Request.Context()
+	span := trace.SpanFromContext(ctx)
 
-	// Call the HTML method of the Context to render a template
-	ctx, span := s.tracer.Start(c.Request.Context(), "ShortlinkController.HandleGetShortLink", trace.WithAttributes(attribute.String("shortlink", shortlinkName), attribute.String("accepted_content_type", contentType)))
-	defer span.End()
+	// Check if the span was sampled and is recording the data
+	if !span.IsRecording() {
+		ctx, span = s.tracer.Start(ctx, "ShortlinkController.HandleDeleteShortLink")
+		defer span.End()
+	}
 
-	bearerToken := c.Request.Header.Get("Authorization")
+	span.SetAttributes(
+		attribute.String("shortlink", shortlinkName),
+		attribute.String("content_type", contentType),
+		attribute.String("referrer", ct.Request.Referer()),
+	)
+
+	bearerToken := ct.Request.Header.Get("Authorization")
 	bearerToken = strings.TrimPrefix(bearerToken, "Bearer")
 	bearerToken = strings.TrimPrefix(bearerToken, "token")
 	if len(bearerToken) == 0 {
 		err := fmt.Errorf("no credentials provided")
 		span.RecordError(err)
-		ginReturnError(c, http.StatusUnauthorized, contentType, err.Error())
+		ginReturnError(ct, http.StatusUnauthorized, contentType, err.Error())
 		return
 	}
 
 	githubUser, err := getGitHubUserInfo(ctx, bearerToken)
 	if err != nil {
 		span.RecordError(err)
-		ginReturnError(c, http.StatusUnauthorized, contentType, err.Error())
+		ginReturnError(ct, http.StatusUnauthorized, contentType, err.Error())
 		return
 	}
 
@@ -62,13 +72,13 @@ func (s *ShortlinkController) HandleDeleteShortLink(c *gin.Context) {
 			statusCode = http.StatusNotFound
 		}
 
-		ginReturnError(c, statusCode, contentType, err.Error())
+		ginReturnError(ct, statusCode, contentType, err.Error())
 		return
 	}
 
 	// When shortlink was not found
 	if shortlink == nil {
-		ginReturnError(c, http.StatusNotFound, contentType, "Shortlink not found")
+		ginReturnError(ct, http.StatusNotFound, contentType, "Shortlink not found")
 		return
 	}
 
@@ -81,7 +91,7 @@ func (s *ShortlinkController) HandleDeleteShortLink(c *gin.Context) {
 
 		observability.RecordError(span, s.log, err, "Failed to delete ShortLink")
 
-		ginReturnError(c, statusCode, contentType, err.Error())
+		ginReturnError(ct, statusCode, contentType, err.Error())
 		return
 	}
 }

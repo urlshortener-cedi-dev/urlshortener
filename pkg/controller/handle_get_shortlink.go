@@ -26,29 +26,39 @@ import (
 // @Tags api/v1/
 // @Router /api/v1/shortlink/{shortlink} [get]
 // @Security bearerAuth
-func (s *ShortlinkController) HandleGetShortLink(c *gin.Context) {
-	shortlinkName := c.Param("shortlink")
+func (s *ShortlinkController) HandleGetShortLink(ct *gin.Context) {
+	shortlinkName := ct.Param("shortlink")
+	contentType := ct.Request.Header.Get("accept")
 
-	contentType := c.Request.Header.Get("accept")
+	ctx := ct.Request.Context()
+	span := trace.SpanFromContext(ctx)
 
-	// Call the HTML method of the Context to render a template
-	ctx, span := s.tracer.Start(c.Request.Context(), "ShortlinkController.HandleGetShortLink", trace.WithAttributes(attribute.String("shortlink", shortlinkName), attribute.String("accepted_content_type", contentType)))
-	defer span.End()
+	// Check if the span was sampled and is recording the data
+	if !span.IsRecording() {
+		ctx, span = s.tracer.Start(ctx, "ShortlinkController.HandleGetShortLink")
+		defer span.End()
+	}
 
-	bearerToken := c.Request.Header.Get("Authorization")
+	span.SetAttributes(
+		attribute.String("shortlink", shortlinkName),
+		attribute.String("content_type", contentType),
+		attribute.String("referrer", ct.Request.Referer()),
+	)
+
+	bearerToken := ct.Request.Header.Get("Authorization")
 	bearerToken = strings.TrimPrefix(bearerToken, "Bearer")
 	bearerToken = strings.TrimPrefix(bearerToken, "token")
 	if len(bearerToken) == 0 {
 		err := fmt.Errorf("no credentials provided")
 		span.RecordError(err)
-		ginReturnError(c, http.StatusUnauthorized, contentType, err.Error())
+		ginReturnError(ct, http.StatusUnauthorized, contentType, err.Error())
 		return
 	}
 
 	githubUser, err := getGitHubUserInfo(ctx, bearerToken)
 	if err != nil {
 		span.RecordError(err)
-		ginReturnError(c, http.StatusUnauthorized, contentType, err.Error())
+		ginReturnError(ct, http.StatusUnauthorized, contentType, err.Error())
 		return
 	}
 
@@ -62,14 +72,14 @@ func (s *ShortlinkController) HandleGetShortLink(c *gin.Context) {
 			statusCode = http.StatusNotFound
 		}
 
-		ginReturnError(c, statusCode, contentType, err.Error())
+		ginReturnError(ct, statusCode, contentType, err.Error())
 		return
 	}
 
 	if contentType == ContentTypeTextPlain {
-		c.Data(http.StatusOK, contentType, []byte(shortlink.Spec.Target))
+		ct.Data(http.StatusOK, contentType, []byte(shortlink.Spec.Target))
 	} else if contentType == ContentTypeApplicationJSON {
-		c.JSON(http.StatusOK, ShortLink{
+		ct.JSON(http.StatusOK, ShortLink{
 			Name:   shortlink.Name,
 			Spec:   shortlink.Spec,
 			Status: shortlink.Status,

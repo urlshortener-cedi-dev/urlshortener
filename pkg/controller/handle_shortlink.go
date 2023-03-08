@@ -31,27 +31,35 @@ import (
 // @Failure       500         {object}  int     "InternalServerError"
 // @Tags default
 // @Router /{shortlink} [get]
-func (s *ShortlinkController) HandleShortLink(c *gin.Context) {
-	shortlinkName := c.Param("shortlink")
+func (s *ShortlinkController) HandleShortLink(ct *gin.Context) {
+	shortlinkName := ct.Param("shortlink")
 
-	// Call the HTML method of the Context to render a template
-	ctx, span := s.tracer.Start(c.Request.Context(), "ShortlinkController.HandleShortLink", trace.WithAttributes(attribute.String("shortlink", shortlinkName)))
-	defer span.End()
+	ctx := ct.Request.Context()
+	span := trace.SpanFromContext(ctx)
 
-	span.AddEvent("shortlink", trace.WithAttributes(attribute.String("shortlink", shortlinkName)))
+	// Check if the span was sampled and is recording the data
+	if !span.IsRecording() {
+		ctx, span = s.tracer.Start(ctx, "ShortlinkController.HandleShortLink")
+		defer span.End()
+	}
 
-	c.Header("Cache-Control", "public, max-age=900, stale-if-error=3600") // max-age = 15min; stale-if-error = 1h
+	span.SetAttributes(
+		attribute.String("shortlink", shortlinkName),
+		attribute.String("referrer", ct.Request.Referer()),
+	)
+
+	ct.Header("Cache-Control", "public, max-age=900, stale-if-error=3600") // max-age = 15min; stale-if-error = 1h
 
 	shortlink, err := s.client.Get(ctx, shortlinkName)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
 			observability.RecordError(span, s.log, err, "Path not found")
-			span.SetAttributes(attribute.String("path", c.Request.URL.Path))
+			span.SetAttributes(attribute.String("path", ct.Request.URL.Path))
 
-			c.HTML(http.StatusNotFound, "404.html", gin.H{})
+			ct.HTML(http.StatusNotFound, "404.html", gin.H{})
 		} else {
 			observability.RecordError(span, s.log, err, "Failed to get ShortLink")
-			c.HTML(http.StatusInternalServerError, "500.html", gin.H{})
+			ct.HTML(http.StatusInternalServerError, "500.html", gin.H{})
 		}
 		return
 	}
@@ -75,19 +83,14 @@ func (s *ShortlinkController) HandleShortLink(c *gin.Context) {
 
 	if shortlink.Spec.Code != 200 {
 		// Redirect
-		c.Redirect(shortlink.Spec.Code, target)
+		ct.Redirect(shortlink.Spec.Code, target)
 	} else {
 		// Redirect via JS/HTML
-		c.HTML(
-			// Set the HTTP status to 200 (OK)
+		ct.HTML(
 			http.StatusOK,
-
-			// Use the index.html template
 			"redirect.html",
-
-			// Pass the data that the page uses (in this case, 'title')
 			gin.H{
-				"redirectFrom":  c.Request.URL.Path,
+				"redirectFrom":  ct.Request.URL.Path,
 				"redirectTo":    target,
 				"redirectAfter": shortlink.Spec.RedirectAfter,
 			},
@@ -95,5 +98,5 @@ func (s *ShortlinkController) HandleShortLink(c *gin.Context) {
 	}
 
 	// Increase hit counter
-	s.client.IncrementInvocationCount(ctx, shortlink)
+	s.client.IncrementInvocationCount(ct, shortlink)
 }

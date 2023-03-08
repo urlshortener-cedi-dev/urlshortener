@@ -37,7 +37,7 @@ func InitTracer(serviceName, serviceVersion string) (*sdkTrace.TracerProvider, t
 
 	client := otlptracehttp.NewClient(otlpOptions...)
 
-	otlptracehttpExporter, err := otlptrace.New(context.TODO(), client)
+	otlptracehttpExporter, err := otlptrace.New(context.Background(), client)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed creating OTLP trace exporter")
 	}
@@ -47,12 +47,21 @@ func InitTracer(serviceName, serviceVersion string) (*sdkTrace.TracerProvider, t
 		return nil, nil, err
 	}
 
-	resources := resource.NewWithAttributes(
-		semconv.SchemaURL,
-		semconv.ServiceNameKey.String(serviceName),
-		semconv.ServiceVersionKey.String(serviceVersion),
-		semconv.ServiceInstanceIDKey.String(hostname),
+	resources, err := resource.New(
+		context.Background(),
+		resource.WithFromEnv(),   // pull attributes from OTEL_RESOURCE_ATTRIBUTES and OTEL_SERVICE_NAME environment variables
+		resource.WithOS(),        // This option configures a set of Detectors that discover OS information
+		resource.WithContainer(), // This option configures a set of Detectors that discover container information
+		resource.WithHost(),      // This option configures a set of Detectors that discover host information
+		resource.WithAttributes(
+			semconv.ServiceNameKey.String(serviceName),
+			semconv.ServiceVersionKey.String(serviceVersion),
+			semconv.ServiceInstanceIDKey.String(hostname),
+		),
 	)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "failed to build resources")
+	}
 
 	traceProvider := sdkTrace.NewTracerProvider(
 		flow.WithBatcher(otlptracehttpExporter),
@@ -67,7 +76,7 @@ func InitTracer(serviceName, serviceVersion string) (*sdkTrace.TracerProvider, t
 	)
 
 	otel.SetTracerProvider(traceProvider)
-	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
+	otel.SetTextMapPropagator(propagation.TraceContext{})
 
 	return traceProvider, trace, nil
 }

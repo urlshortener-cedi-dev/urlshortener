@@ -10,6 +10,7 @@ import (
 	"github.com/cedi/urlshortener/api/v1alpha1"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const (
@@ -50,7 +51,7 @@ func ginReturnError(c *gin.Context, statusCode int, contentType string, err stri
 
 func getGitHubUserInfo(c context.Context, bearerToken string) (*GithubUser, error) {
 	// prepare request to GitHubs User endpoint
-	req, err := http.NewRequest(http.MethodGet, "https://api.github.com/user", nil)
+	req, err := http.NewRequestWithContext(c, http.MethodGet, "https://api.github.com/user", nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to build request to fetch GitHub API")
 	}
@@ -60,7 +61,9 @@ func getGitHubUserInfo(c context.Context, bearerToken string) (*GithubUser, erro
 	req.Header.Add("Authorization", "token "+bearerToken)
 
 	// Perform request
-	client := &http.Client{}
+	client := &http.Client{
+		Transport: otelhttp.NewTransport(http.DefaultTransport),
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to fetch UserInfo from GitHub API")
@@ -69,7 +72,7 @@ func getGitHubUserInfo(c context.Context, bearerToken string) (*GithubUser, erro
 
 	// If request was unsuccessful, we error out
 	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("Bad credentials")
+		return nil, fmt.Errorf("bad credentials")
 	}
 
 	// If successful, we read the response body

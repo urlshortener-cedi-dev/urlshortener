@@ -25,29 +25,38 @@ import (
 // @Tags api/v1/
 // @Router /api/v1/shortlink/ [get]
 // @Security bearerAuth
-func (s *ShortlinkController) HandleListShortLink(c *gin.Context) {
-	contentType := c.Request.Header.Get("accept")
+func (s *ShortlinkController) HandleListShortLink(ct *gin.Context) {
+	contentType := ct.Request.Header.Get("accept")
 
-	trace.SpanFromContext(c)
+	// Extract span from the request context
+	ctx := ct.Request.Context()
+	span := trace.SpanFromContext(ctx)
 
-	// Call the HTML method of the Context to render a template
-	ctx, span := s.tracer.Start(c.Request.Context(), "ShortlinkController.HandleListShortLink", trace.WithAttributes(attribute.String("accepted_content_type", contentType)))
-	defer span.End()
+	// Check if the span was sampled and is recording the data
+	if !span.IsRecording() {
+		ctx, span = s.tracer.Start(ctx, "ShortlinkController.HandleDeleteShortLink")
+		defer span.End()
+	}
 
-	bearerToken := c.Request.Header.Get("Authorization")
+	span.SetAttributes(
+		attribute.String("content_type", contentType),
+		attribute.String("referrer", ct.Request.Referer()),
+	)
+
+	bearerToken := ct.Request.Header.Get("Authorization")
 	bearerToken = strings.TrimPrefix(bearerToken, "Bearer")
 	bearerToken = strings.TrimPrefix(bearerToken, "token")
 	if len(bearerToken) == 0 {
 		err := fmt.Errorf("no credentials provided")
 		span.RecordError(err)
-		ginReturnError(c, http.StatusUnauthorized, contentType, err.Error())
+		ginReturnError(ct, http.StatusUnauthorized, contentType, err.Error())
 		return
 	}
 
 	githubUser, err := getGitHubUserInfo(ctx, bearerToken)
 	if err != nil {
 		span.RecordError(err)
-		ginReturnError(c, http.StatusUnauthorized, contentType, err.Error())
+		ginReturnError(ct, http.StatusUnauthorized, contentType, err.Error())
 		return
 	}
 
@@ -61,7 +70,7 @@ func (s *ShortlinkController) HandleListShortLink(c *gin.Context) {
 			statusCode = http.StatusNotFound
 		}
 
-		ginReturnError(c, statusCode, contentType, err.Error())
+		ginReturnError(ct, statusCode, contentType, err.Error())
 		return
 	}
 
@@ -76,12 +85,12 @@ func (s *ShortlinkController) HandleListShortLink(c *gin.Context) {
 	}
 
 	if contentType == ContentTypeApplicationJSON {
-		c.JSON(http.StatusOK, targetList)
+		ct.JSON(http.StatusOK, targetList)
 	} else if contentType == ContentTypeTextPlain {
 		shortLinks := ""
 		for _, shortlink := range targetList {
 			shortLinks += fmt.Sprintf("%s: %s\n", shortlink.Name, shortlink.Spec.Target)
 		}
-		c.Data(http.StatusOK, contentType, []byte(shortLinks))
+		ct.Data(http.StatusOK, contentType, []byte(shortLinks))
 	}
 }

@@ -104,7 +104,7 @@ func (c *ShortlinkClient) ListNamespaced(ct context.Context, namespace string) (
 }
 
 func (c *ShortlinkClient) Update(ct context.Context, shortlink *v1alpha1.ShortLink) error {
-	ctx, span := c.tracer.Start(ct, "ShortlinkClient.Save", trace.WithAttributes(attribute.String("shortlink", shortlink.ObjectMeta.Name), attribute.String("namespace", shortlink.ObjectMeta.Namespace)))
+	ctx, span := c.tracer.Start(ct, "ShortlinkClient.Update", trace.WithAttributes(attribute.String("shortlink", shortlink.ObjectMeta.Name), attribute.String("namespace", shortlink.ObjectMeta.Namespace)))
 	defer span.End()
 
 	if err := c.client.Update(ctx, shortlink); err != nil {
@@ -116,7 +116,7 @@ func (c *ShortlinkClient) Update(ct context.Context, shortlink *v1alpha1.ShortLi
 }
 
 func (c *ShortlinkClient) UpdateStatus(ct context.Context, shortlink *v1alpha1.ShortLink) error {
-	ctx, span := c.tracer.Start(ct, "ShortlinkClient.SaveStatus", trace.WithAttributes(attribute.String("shortlink", shortlink.ObjectMeta.Name), attribute.String("namespace", shortlink.ObjectMeta.Namespace)))
+	ctx, span := c.tracer.Start(ct, "ShortlinkClient.UpdateStatus", trace.WithAttributes(attribute.String("shortlink", shortlink.ObjectMeta.Name), attribute.String("namespace", shortlink.ObjectMeta.Namespace)))
 	defer span.End()
 
 	err := c.client.Status().Update(ctx, shortlink)
@@ -128,7 +128,7 @@ func (c *ShortlinkClient) UpdateStatus(ct context.Context, shortlink *v1alpha1.S
 }
 
 func (c *ShortlinkClient) IncrementInvocationCount(ct context.Context, shortlink *v1alpha1.ShortLink) error {
-	ctx, span := c.tracer.Start(ct, "ShortlinkClient.SaveStatus", trace.WithAttributes(attribute.String("shortlink", shortlink.ObjectMeta.Name), attribute.String("namespace", shortlink.ObjectMeta.Namespace)))
+	ctx, span := c.tracer.Start(ct, "ShortlinkClient.IncrementInvocationCount", trace.WithAttributes(attribute.String("shortlink", shortlink.ObjectMeta.Name), attribute.String("namespace", shortlink.ObjectMeta.Namespace)))
 	defer span.End()
 
 	shortlink.Status.Count = shortlink.Status.Count + 1
@@ -141,7 +141,6 @@ func (c *ShortlinkClient) IncrementInvocationCount(ct context.Context, shortlink
 	return nil
 }
 
-// Delete deletes a Shortlink object
 func (c *ShortlinkClient) Delete(ct context.Context, shortlink *v1alpha1.ShortLink) error {
 	ctx, span := c.tracer.Start(ct, "ShortlinkClient.Delete", trace.WithAttributes(attribute.String("name", shortlink.Name), attribute.String("namespace", shortlink.Namespace)))
 	defer span.End()

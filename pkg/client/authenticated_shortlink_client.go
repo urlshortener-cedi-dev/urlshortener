@@ -4,9 +4,12 @@ import (
 	"context"
 
 	"github.com/cedi/urlshortener/api/v1alpha1"
+	"github.com/cedi/urlshortener/pkg/model"
+
 	"github.com/go-logr/logr"
+	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
-	"golang.org/x/exp/slices"
 )
 
 type ShortlinkClientAuth struct {
@@ -26,6 +29,8 @@ func NewAuthenticatedShortlinkClient(log *logr.Logger, tracer trace.Tracer, clie
 func (c *ShortlinkClientAuth) List(ct context.Context, username string) (*v1alpha1.ShortLinkList, error) {
 	ctx, span := c.tracer.Start(ct, "ShortlinkClientAuth.List")
 	defer span.End()
+
+	span.SetAttributes(attribute.String("username", username))
 
 	list, err := c.client.List(ctx)
 	if err != nil {
@@ -51,13 +56,15 @@ func (c *ShortlinkClientAuth) Get(ct context.Context, username string, name stri
 	ctx, span := c.tracer.Start(ct, "ShortlinkClientAuth.Get")
 	defer span.End()
 
+	span.SetAttributes(attribute.String("username", username))
+
 	shortLink, err := c.client.Get(ctx, name)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Unable to get shortlink")
 	}
 
 	if !shortLink.IsOwnedBy(username) {
-		return nil, nil
+		return nil, model.NewNotAllowedError(username, "delete", shortLink.Name)
 	}
 
 	return shortLink, nil
@@ -67,8 +74,9 @@ func (c *ShortlinkClientAuth) Create(ct context.Context, username string, shortL
 	ctx, span := c.tracer.Start(ct, "ShortlinkClientAuth.Create")
 	defer span.End()
 
-	shortLink.Spec.Owner = username
+	span.SetAttributes(attribute.String("username", username))
 
+	shortLink.Spec.Owner = username
 	return c.client.Create(ctx, shortLink)
 }
 
@@ -76,12 +84,10 @@ func (c *ShortlinkClientAuth) Update(ct context.Context, username string, shortL
 	ctx, span := c.tracer.Start(ct, "ShortlinkClientAuth.Update")
 	defer span.End()
 
-	// When someone updates a shortlink and removes himself as the owner
-	// add him to the CoOwner
-	if shortLink.Spec.Owner != username {
-		if !slices.Contains(shortLink.Spec.CoOwners, username) {
-			shortLink.Spec.CoOwners = append(shortLink.Spec.CoOwners, username)
-		}
+	span.SetAttributes(attribute.String("username", username))
+
+	if !shortLink.IsOwnedBy(username) {
+		return model.NewNotAllowedError(username, "delete", shortLink.Name)
 	}
 
 	if err := c.client.Update(ctx, shortLink); err != nil {
@@ -96,8 +102,10 @@ func (c *ShortlinkClientAuth) Delete(ct context.Context, username string, shortL
 	ctx, span := c.tracer.Start(ct, "ShortlinkClientAuth.Update")
 	defer span.End()
 
+	span.SetAttributes(attribute.String("username", username))
+
 	if !shortLink.IsOwnedBy(username) {
-		return nil
+		return model.NewNotAllowedError(username, "delete", shortLink.Name)
 	}
 
 	return c.client.Delete(ctx, shortLink)
