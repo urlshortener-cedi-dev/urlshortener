@@ -18,8 +18,11 @@ package controllers
 
 import (
 	"context"
+	"time"
 
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/instrument"
 	"go.opentelemetry.io/otel/trace"
 	networkingv1 "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -57,16 +60,36 @@ type RedirectReconciler struct {
 	scheme *runtime.Scheme
 	log    *logr.Logger
 	tracer trace.Tracer
+
+	redirectCount int
+	redirects     instrument.Int64UpDownCounter
+	latency       instrument.Int64Histogram
 }
 
 // NewRedirectReconciler returns a new RedirectReconciler
-func NewRedirectReconciler(client client.Client, rClient *redirectclient.RedirectClient, scheme *runtime.Scheme, log *logr.Logger, tracer trace.Tracer) *RedirectReconciler {
+func NewRedirectReconciler(client client.Client, rClient *redirectclient.RedirectClient, scheme *runtime.Scheme, log *logr.Logger, tracer trace.Tracer, meter metric.Meter) *RedirectReconciler {
+	var redirects, _ = meter.Int64UpDownCounter(
+		"urlshortener.active_redirects",
+		instrument.WithUnit("count"),
+		instrument.WithDescription("Amount of redirects (redirect one URL to another)"),
+	)
+
+	var redirectReconcileLatency, _ = meter.Int64Histogram(
+		"urlshortener.redirect_controller.reconcile_latency",
+		instrument.WithUnit("microseconds"),
+		instrument.WithDescription("How long does the reconcile function run for"),
+	)
+
 	return &RedirectReconciler{
 		client:  client,
 		rClient: rClient,
 		scheme:  scheme,
 		log:     log,
 		tracer:  tracer,
+
+		redirectCount: 0,
+		redirects:     redirects,
+		latency:       redirectReconcileLatency,
 	}
 }
 
@@ -82,15 +105,31 @@ func NewRedirectReconciler(client client.Client, rClient *redirectclient.Redirec
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
-func (r *RedirectReconciler) Reconcile(c context.Context, req ctrl.Request) (ctrl.Result, error) {
-	ctx, span := r.tracer.Start(c, "RedirectReconciler.Reconcile", trace.WithAttributes(attribute.String("redirect", req.Name)))
-	defer span.End()
+func (r *RedirectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	startTime := time.Now()
+
+	defer func() {
+		r.latency.Record(ctx, time.Since(startTime).Microseconds(), attribute.String("redirect", req.NamespacedName.String()))
+	}()
 
 	log := r.log.WithName("reconciler").WithValues("redirect", req.NamespacedName)
+
+	span := trace.SpanFromContext(ctx)
+
+	// Check if the span was sampled and is recording the data
+	if !span.IsRecording() {
+		ctx, span = r.tracer.Start(ctx, "RedirectReconciler.Reconcile")
+		defer span.End()
+	}
+
+	span.SetAttributes(attribute.String("redirect", req.Name))
 
 	// Monitor the number of redirects
 	if redirectList, err := r.rClient.List(ctx); redirectList != nil && err == nil {
 		activeRedirects.Set(float64(len(redirectList.Items)))
+
+		r.redirects.Add(ctx, int64(len(redirectList.Items)-r.redirectCount))
+		r.redirectCount = len(redirectList.Items)
 	}
 
 	// get Redirect from etcd
