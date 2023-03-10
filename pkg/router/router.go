@@ -33,10 +33,10 @@ import (
 // @in header
 // @name Authorization
 
-func NewGinGonicHTTPServer(setupLog *logr.Logger, bindAddr, serviceName string) (*gin.Engine, *http.Server) {
+func NewGinGonicHTTPServer(setupLog *logr.Logger, bindAddr string) (*gin.Engine, *http.Server) {
 	router := gin.New()
 	router.Use(
-		otelgin.Middleware(serviceName),
+		otelgin.Middleware("urlshortener"),
 		secure.Secure(secure.Options{
 			SSLRedirect:           true,
 			SSLProxyHeaders:       map[string]string{"X-Forwarded-Proto": "https"},

@@ -109,19 +109,6 @@ func main() {
 		}
 	}()
 
-	// Initialize Metrics (OpenTelemetry)
-	meterProvider, meter, err := observability.InitMetrics(serviceName, serviceVersion)
-	if err != nil {
-		setupLog.Error(err, "failed initializing tracing")
-		os.Exit(1)
-	}
-
-	defer func() {
-		if err := meterProvider.Shutdown(context.Background()); err != nil {
-			shutdownLog.Error(err, "Error shutting down metrics provider")
-		}
-	}()
-
 	// Start namespaced
 	namespace := ""
 
@@ -174,7 +161,6 @@ func main() {
 		mgr.GetScheme(),
 		&ctrl.Log,
 		tracer,
-		meter,
 	)
 
 	if err = shortlinkReconciler.SetupWithManager(mgr); err != nil {
@@ -189,7 +175,6 @@ func main() {
 		mgr.GetScheme(),
 		&ctrl.Log,
 		tracer,
-		meter,
 	)
 
 	if err = redirectReconciler.SetupWithManager(mgr); err != nil {
@@ -228,7 +213,7 @@ func main() {
 
 	// Init Gin Framework
 	gin.SetMode(gin.ReleaseMode)
-	r, srv := router.NewGinGonicHTTPServer(&setupLog, bindAddr, serviceName)
+	r, srv := router.NewGinGonicHTTPServer(&setupLog, bindAddr)
 
 	setupLog.Info("Load API routes")
 	router.Load(r, shortlinkController)
