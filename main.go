@@ -213,7 +213,7 @@ func main() {
 
 	// Init Gin Framework
 	gin.SetMode(gin.ReleaseMode)
-	r, srv := router.NewGinGonicHTTPServer(&setupLog, bindAddr)
+	r, srv := router.NewGinGonicHTTPServer(bindAddr, &setupLog, serviceName)
 
 	setupLog.Info("Load API routes")
 	router.Load(r, shortlinkController)
