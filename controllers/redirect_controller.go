@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"time"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -27,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	urlshortenerv1alpha1 "github.com/cedi/urlshortener/api/v1alpha1"
 	redirectclient "github.com/cedi/urlshortener/pkg/client"
@@ -35,19 +35,7 @@ import (
 	redirectpkg "github.com/cedi/urlshortener/pkg/redirect"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
-	"github.com/prometheus/client_golang/prometheus"
 )
-
-var activeRedirects = prometheus.NewGauge(
-	prometheus.GaugeOpts{
-		Name: "urlshortener_active_redirects",
-		Help: "Number of redirects installed for this urlshortener instance",
-	},
-)
-
-func init() {
-	metrics.Registry.MustRegister(activeRedirects)
-}
 
 // RedirectReconciler reconciles a Redirect object
 type RedirectReconciler struct {
@@ -82,15 +70,27 @@ func NewRedirectReconciler(client client.Client, rClient *redirectclient.Redirec
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.1/pkg/reconcile
-func (r *RedirectReconciler) Reconcile(c context.Context, req ctrl.Request) (ctrl.Result, error) {
-	ctx, span := r.tracer.Start(c, "RedirectReconciler.Reconcile", trace.WithAttributes(attribute.String("redirect", req.Name)))
-	defer span.End()
+func (r *RedirectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	startTime := time.Now()
+	defer func() {
+		reconcilerDuration.WithLabelValues("redirect", req.Name, req.Namespace).Observe(float64(time.Since(startTime).Microseconds()))
+	}()
+
+	span := trace.SpanFromContext(ctx)
+
+	// Check if the span was sampled and is recording the data
+	if !span.IsRecording() {
+		ctx, span = r.tracer.Start(ctx, "RedirectReconciler.Reconcile")
+		defer span.End()
+	}
+
+	span.SetAttributes(attribute.String("redirect", req.NamespacedName.String()))
 
 	log := r.log.WithName("reconciler").WithValues("redirect", req.NamespacedName)
 
 	// Monitor the number of redirects
 	if redirectList, err := r.rClient.List(ctx); redirectList != nil && err == nil {
-		activeRedirects.Set(float64(len(redirectList.Items)))
+		active.WithLabelValues("redirect").Set(float64(len(redirectList.Items)))
 	}
 
 	// get Redirect from etcd

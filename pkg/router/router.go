@@ -37,6 +37,7 @@ func NewGinGonicHTTPServer(setupLog *logr.Logger, bindAddr string) (*gin.Engine,
 	router := gin.New()
 	router.Use(
 		otelgin.Middleware("urlshortener"),
+		PromMiddleware("urlshortener"),
 		secure.Secure(secure.Options{
 			SSLRedirect:           true,
 			SSLProxyHeaders:       map[string]string{"X-Forwarded-Proto": "https"},
