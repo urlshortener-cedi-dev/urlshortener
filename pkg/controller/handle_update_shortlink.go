@@ -3,7 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
@@ -88,7 +88,7 @@ func (s *ShortlinkController) HandleUpdateShortLink(ct *gin.Context) {
 
 	shortlinkSpec := v1alpha1.ShortLinkSpec{}
 
-	jsonData, err := ioutil.ReadAll(ct.Request.Body)
+	jsonData, err := io.ReadAll(ct.Request.Body)
 	if err != nil {
 		observability.RecordError(span, s.log, err, "Failed to read request-body")
 

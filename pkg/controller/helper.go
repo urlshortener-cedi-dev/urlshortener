@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/cedi/urlshortener/api/v1alpha1"
@@ -76,7 +76,7 @@ func getGitHubUserInfo(c context.Context, bearerToken string) (*GithubUser, erro
 	}
 
 	// If successful, we read the response body
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, errors.Wrap(err, "Error while reading the response")
 	}
