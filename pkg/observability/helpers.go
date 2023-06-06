@@ -12,7 +12,7 @@ func RecordError(span trace.Span, log *logr.Logger, err error, msg string, args 
 	message := fmt.Sprintf(msg, args...)
 	span.AddEvent(message)
 
-	log.Error(err, message)
+	log.WithValues("traceID", span.SpanContext().TraceID()).Error(err, message)
 
 	err = errors.Wrap(err, message)
 	span.RecordError(err)
@@ -20,6 +20,6 @@ func RecordError(span trace.Span, log *logr.Logger, err error, msg string, args 
 }
 
 func RecordInfo(span trace.Span, log *logr.Logger, msg string, args ...any) {
-	log.Info(fmt.Sprintf(msg, args...))
+	log.WithValues("traceID", span.SpanContext().TraceID()).Info(fmt.Sprintf(msg, args...))
 	span.AddEvent(fmt.Sprintf(msg, args...))
 }
