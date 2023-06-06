@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"go.uber.org/zap"
 )
 
 // HandleGetShortLink returns the shortlink
@@ -45,6 +46,11 @@ func (s *ShortlinkController) HandleGetShortLink(ct *gin.Context) {
 		attribute.String("referrer", ct.Request.Referer()),
 	)
 
+	log := s.zapLog.Sugar()
+	log.With(zap.String("shortlink", shortlinkName),
+		zap.String("operation", "create"),
+	)
+
 	bearerToken := ct.Request.Header.Get("Authorization")
 	bearerToken = strings.TrimPrefix(bearerToken, "Bearer")
 	bearerToken = strings.TrimPrefix(bearerToken, "token")
@@ -64,7 +70,7 @@ func (s *ShortlinkController) HandleGetShortLink(ct *gin.Context) {
 
 	shortlink, err := s.authenticatedClient.Get(ctx, githubUser.Login, shortlinkName)
 	if err != nil {
-		observability.RecordError(span, s.log, err, "Failed to get ShortLink")
+		observability.RecordError(span, log, err, "Failed to get ShortLink")
 
 		statusCode := http.StatusInternalServerError
 

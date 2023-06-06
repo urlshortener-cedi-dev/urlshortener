@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"go.uber.org/zap"
 )
 
 // HandleShortlink handles the shortlink and redirects according to the configuration
@@ -48,17 +49,22 @@ func (s *ShortlinkController) HandleShortLink(ct *gin.Context) {
 		attribute.String("referrer", ct.Request.Referer()),
 	)
 
+	log := s.zapLog.Sugar()
+	log.With(zap.String("shortlink", shortlinkName),
+		zap.String("operation", "shortlink"),
+	)
+
 	ct.Header("Cache-Control", "public, max-age=900, stale-if-error=3600") // max-age = 15min; stale-if-error = 1h
 
 	shortlink, err := s.client.Get(ctx, shortlinkName)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			observability.RecordError(span, s.log, err, "Path not found")
+			observability.RecordError(span, log, err, "Path not found")
 			span.SetAttributes(attribute.String("path", ct.Request.URL.Path))
 
 			ct.HTML(http.StatusNotFound, "404.html", gin.H{})
 		} else {
-			observability.RecordError(span, s.log, err, "Failed to get ShortLink")
+			observability.RecordError(span, log, err, "Failed to get ShortLink")
 			ct.HTML(http.StatusInternalServerError, "500.html", gin.H{})
 		}
 		return
