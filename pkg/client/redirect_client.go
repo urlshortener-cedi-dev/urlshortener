@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/cedi/urlshortener/api/v1alpha1"
-	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -18,15 +17,13 @@ import (
 // RedirectClient is a Kubernetes client for easy CRUD operations
 type RedirectClient struct {
 	client client.Client
-	log    *logr.Logger
 	tracer trace.Tracer
 }
 
 // NewRedirectClient creates a new Redirect Client
-func NewRedirectClient(client client.Client, log *logr.Logger, tracer trace.Tracer) *RedirectClient {
+func NewRedirectClient(client client.Client, tracer trace.Tracer) *RedirectClient {
 	return &RedirectClient{
 		client: client,
-		log:    log,
 		tracer: tracer,
 	}
 }

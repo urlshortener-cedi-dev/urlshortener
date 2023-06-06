@@ -35,6 +35,7 @@ import (
 	"github.com/cedi/urlshortener/pkg/observability"
 	redirectpkg "github.com/cedi/urlshortener/pkg/redirect"
 	"github.com/pkg/errors"
+	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 )
 
 // RedirectReconciler reconciles a Redirect object
@@ -43,17 +44,15 @@ type RedirectReconciler struct {
 	rClient *redirectclient.RedirectClient
 
 	scheme *runtime.Scheme
-	zapLog *zap.Logger
 	tracer trace.Tracer
 }
 
 // NewRedirectReconciler returns a new RedirectReconciler
-func NewRedirectReconciler(client client.Client, rClient *redirectclient.RedirectClient, scheme *runtime.Scheme, zapLog *zap.Logger, tracer trace.Tracer) *RedirectReconciler {
+func NewRedirectReconciler(client client.Client, rClient *redirectclient.RedirectClient, scheme *runtime.Scheme, tracer trace.Tracer) *RedirectReconciler {
 	return &RedirectReconciler{
 		client:  client,
 		rClient: rClient,
 		scheme:  scheme,
-		zapLog:  zapLog,
 		tracer:  tracer,
 	}
 }
@@ -86,7 +85,7 @@ func (r *RedirectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	span.SetAttributes(attribute.String("redirect", req.NamespacedName.String()))
 
-	log := r.zapLog.Sugar().With(zap.String("name", "reconciler"), zap.String("redirect", req.NamespacedName.String()))
+	log := otelzap.L().Sugar().With(zap.String("name", "reconciler"), zap.String("redirect", req.NamespacedName.String()))
 
 	// Monitor the number of redirects
 	if redirectList, err := r.rClient.List(ctx); redirectList != nil && err == nil {
@@ -100,19 +99,19 @@ func (r *RedirectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
-			observability.RecordInfo(span, log, "Shortlink resource not found. Ignoring since object must be deleted")
+			observability.RecordInfo(ctx, span, log, "Shortlink resource not found. Ignoring since object must be deleted")
 			return ctrl.Result{}, nil
 		}
 
 		// Error reading the object - requeue the request.
-		observability.RecordError(span, log, err, "Failed to fetch Redirect resource")
+		observability.RecordError(ctx, span, log, err, "Failed to fetch Redirect resource")
 		return ctrl.Result{}, err
 	}
 
 	// Check if the ingress already exists, if not create a new one
 	ingress, err := r.upsertRedirectIngress(ctx, redirect)
 	if err != nil {
-		observability.RecordError(span, log, err, "Failed to upsert redirect ingress")
+		observability.RecordError(ctx, span, log, err, "Failed to upsert redirect ingress")
 	}
 
 	// Update the Redirect status with the ingress name and the target
@@ -123,7 +122,7 @@ func (r *RedirectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	if err = r.client.List(ctx, ingressList, listOpts...); err != nil {
-		observability.RecordError(span, log, err, "Failed to list ingresses")
+		observability.RecordError(ctx, span, log, err, "Failed to list ingresses")
 		return ctrl.Result{}, err
 	}
 
@@ -132,7 +131,7 @@ func (r *RedirectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	redirect.Status.Target = ingress.ObjectMeta.Annotations["nginx.ingress.kubernetes.io/permanent-redirect"]
 	err = r.client.Status().Update(ctx, redirect)
 	if err != nil {
-		observability.RecordError(span, log, err, "Failed to update Redirect status")
+		observability.RecordError(ctx, span, log, err, "Failed to update Redirect status")
 		return ctrl.Result{}, err
 	}
 

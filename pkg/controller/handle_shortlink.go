@@ -7,6 +7,7 @@ import (
 
 	"github.com/cedi/urlshortener/pkg/observability"
 	"github.com/gin-gonic/gin"
+	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
@@ -49,7 +50,7 @@ func (s *ShortlinkController) HandleShortLink(ct *gin.Context) {
 		attribute.String("referrer", ct.Request.Referer()),
 	)
 
-	log := s.zapLog.Sugar().With(zap.String("shortlink", shortlinkName),
+	log := otelzap.L().Sugar().With(zap.String("shortlink", shortlinkName),
 		zap.String("operation", "shortlink"),
 	)
 
@@ -58,12 +59,12 @@ func (s *ShortlinkController) HandleShortLink(ct *gin.Context) {
 	shortlink, err := s.client.Get(ctx, shortlinkName)
 	if err != nil {
 		if strings.Contains(err.Error(), "not found") {
-			observability.RecordError(span, log, err, "Path not found")
+			observability.RecordError(ctx, span, log, err, "Path not found")
 			span.SetAttributes(attribute.String("path", ct.Request.URL.Path))
 
 			ct.HTML(http.StatusNotFound, "404.html", gin.H{})
 		} else {
-			observability.RecordError(span, log, err, "Failed to get ShortLink")
+			observability.RecordError(ctx, span, log, err, "Failed to get ShortLink")
 			ct.HTML(http.StatusInternalServerError, "500.html", gin.H{})
 		}
 		return

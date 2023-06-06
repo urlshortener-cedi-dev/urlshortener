@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/cedi/urlshortener/api/v1alpha1"
-	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -16,15 +15,13 @@ import (
 // ShortlinkClient is a Kubernetes client for easy CRUD operations
 type ShortlinkClient struct {
 	client client.Client
-	log    *logr.Logger
 	tracer trace.Tracer
 }
 
 // NewShortlinkClient creates a new shortlink Client
-func NewShortlinkClient(client client.Client, log *logr.Logger, tracer trace.Tracer) *ShortlinkClient {
+func NewShortlinkClient(client client.Client, tracer trace.Tracer) *ShortlinkClient {
 	return &ShortlinkClient{
 		client: client,
-		log:    log,
 		tracer: tracer,
 	}
 }

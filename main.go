@@ -37,6 +37,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-logr/zapr"
+	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 
 	v1alpha1 "github.com/cedi/urlshortener/api/v1alpha1"
 	"github.com/cedi/urlshortener/controllers"
@@ -89,16 +90,16 @@ func main() {
 	flag.Parse()
 
 	// Initialize Logging
-	zapLog, otelLogger, undo := observability.InitLogging(debug)
+	otelLogger, undo := observability.InitLogging(debug)
 	defer otelLogger.Sync()
 	defer undo()
 
-	ctrl.SetLogger(zapr.NewLogger(zapLog))
+	ctrl.SetLogger(zapr.NewLogger(otelzap.L().Logger))
 
 	// Initialize Tracing (OpenTelemetry)
 	traceProvider, tracer, err := observability.InitTracer(serviceName, serviceVersion)
 	if err != nil {
-		zapLog.Sugar().Errorw("failed initializing tracing",
+		otelzap.L().Sugar().Errorw("failed initializing tracing",
 			zap.Error(err),
 		)
 		os.Exit(1)
@@ -106,7 +107,7 @@ func main() {
 
 	defer func() {
 		if err := traceProvider.Shutdown(context.Background()); err != nil {
-			zapLog.Sugar().Errorw("Error shutting down tracer provider",
+			otelzap.L().Sugar().Errorw("Error shutting down tracer provider",
 				zap.Error(err),
 			)
 		}
@@ -121,7 +122,7 @@ func main() {
 		namespaceByte, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 		if err != nil {
 			span.RecordError(err)
-			zapLog.Sugar().Errorw("Error shutting down tracer provider",
+			otelzap.L().Sugar().Errorw("Error shutting down tracer provider",
 				zap.Error(err),
 			)
 			os.Exit(1)
@@ -145,7 +146,7 @@ func main() {
 
 	if err != nil {
 		span.RecordError(err)
-		zapLog.Sugar().Errorw("unable to start urlshortener",
+		otelzap.L().Sugar().Errorw("unable to start urlshortener",
 			zap.Error(err),
 		)
 		os.Exit(1)
@@ -153,26 +154,23 @@ func main() {
 
 	sClient := shortlinkClient.NewShortlinkClient(
 		mgr.GetClient(),
-		&ctrl.Log,
 		tracer,
 	)
 
 	rClient := shortlinkClient.NewRedirectClient(
 		mgr.GetClient(),
-		&ctrl.Log,
 		tracer,
 	)
 
 	shortlinkReconciler := controllers.NewShortLinkReconciler(
 		sClient,
 		mgr.GetScheme(),
-		zapLog,
 		tracer,
 	)
 
 	if err = shortlinkReconciler.SetupWithManager(mgr); err != nil {
 		span.RecordError(err)
-		zapLog.Sugar().Errorw("unable to create controller",
+		otelzap.L().Sugar().Errorw("unable to create controller",
 			zap.Error(err),
 			zap.String("controller", "ShortLink"),
 		)
@@ -183,13 +181,12 @@ func main() {
 		mgr.GetClient(),
 		rClient,
 		mgr.GetScheme(),
-		zapLog,
 		tracer,
 	)
 
 	if err = redirectReconciler.SetupWithManager(mgr); err != nil {
 		span.RecordError(err)
-		zapLog.Sugar().Errorw("unable to create controller",
+		otelzap.L().Sugar().Errorw("unable to create controller",
 			zap.Error(err),
 			zap.String("controller", "Redirect"),
 		)
@@ -200,14 +197,14 @@ func main() {
 	span.End()
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		zapLog.Sugar().Errorw("unable to set up health check",
+		otelzap.L().Sugar().Errorw("unable to set up health check",
 			zap.Error(err),
 		)
 		os.Exit(1)
 	}
 
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		zapLog.Sugar().Errorw("unable to set up ready check",
+		otelzap.L().Sugar().Errorw("unable to set up ready check",
 			zap.Error(err),
 		)
 		os.Exit(1)
@@ -215,10 +212,10 @@ func main() {
 
 	// run our urlshortener mgr in a separate go routine
 	go func() {
-		zapLog.Info("starting urlshortener")
+		otelzap.L().Info("starting urlshortener")
 
 		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-			zapLog.Sugar().Errorw("unable starting urlshortener",
+			otelzap.L().Sugar().Errorw("unable starting urlshortener",
 				zap.Error(err),
 			)
 			os.Exit(1)
@@ -226,35 +223,34 @@ func main() {
 	}()
 
 	shortlinkController := apiController.NewShortlinkController(
-		zapLog,
 		tracer,
 		sClient,
 	)
 
 	// Init Gin Framework
 	gin.SetMode(gin.ReleaseMode)
-	r, srv := router.NewGinGonicHTTPServer(bindAddr, zapLog, serviceName)
+	r, srv := router.NewGinGonicHTTPServer(bindAddr, serviceName)
 
-	zapLog.Info("Load API routes")
+	otelzap.L().Info("Load API routes")
 	router.Load(r, shortlinkController)
 
 	// run our gin server mgr in a separate go routine
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && errors.Is(err, http.ErrServerClosed) {
-			zapLog.Sugar().Errorw("failed to listen and serve",
+			otelzap.L().Sugar().Errorw("failed to listen and serve",
 				zap.Error(err),
 			)
 		}
 	}()
 
-	handleShutdown(srv, zapLog)
+	handleShutdown(srv)
 
-	zapLog.Info("Server exiting")
+	otelzap.L().Info("Server exiting")
 }
 
 // handleShutdown waits for interrupt signal and then tries to gracefully
 // shutdown the server with a timeout of 5 seconds.
-func handleShutdown(srv *http.Server, zapLog *zap.Logger) {
+func handleShutdown(srv *http.Server) {
 	quit := make(chan os.Signal, 1)
 
 	signal.Notify(
@@ -266,7 +262,7 @@ func handleShutdown(srv *http.Server, zapLog *zap.Logger) {
 
 	// wait (and block) until shutdown signal is received
 	<-quit
-	zapLog.Info("Shutting down server...")
+	otelzap.L().Info("Shutting down server...")
 
 	// The context is used to inform the server it has 5 seconds to finish
 	// the request it is currently handling
@@ -277,7 +273,7 @@ func handleShutdown(srv *http.Server, zapLog *zap.Logger) {
 	// then srv.Shutdown(ctx) will return an error, causing us to force
 	// the shutdown
 	if err := srv.Shutdown(ctx); err != nil {
-		zapLog.Sugar().Errorw("Server forced to shutdown",
+		otelzap.L().Sugar().Errorw("Server forced to shutdown",
 			zap.Error(err),
 		)
 		os.Exit(1)

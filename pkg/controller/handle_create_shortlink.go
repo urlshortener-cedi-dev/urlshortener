@@ -10,6 +10,7 @@ import (
 	"github.com/cedi/urlshortener/api/v1alpha1"
 	"github.com/cedi/urlshortener/pkg/observability"
 	"github.com/gin-gonic/gin"
+	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
@@ -56,7 +57,7 @@ func (s *ShortlinkController) HandleCreateShortLink(ct *gin.Context) {
 		attribute.String("referrer", ct.Request.Referer()),
 	)
 
-	log := s.zapLog.Sugar().With(zap.String("shortlink", shortlinkName),
+	log := otelzap.L().Sugar().With(zap.String("shortlink", shortlinkName),
 		zap.String("operation", "create"),
 	)
 
@@ -65,14 +66,14 @@ func (s *ShortlinkController) HandleCreateShortLink(ct *gin.Context) {
 	bearerToken = strings.TrimPrefix(bearerToken, "token")
 	if len(bearerToken) == 0 {
 		err := fmt.Errorf("no credentials provided")
-		span.RecordError(err)
+		observability.RecordError(ctx, span, log, err, "no credentials provided")
 		ginReturnError(ct, http.StatusUnauthorized, contentType, err.Error())
 		return
 	}
 
 	githubUser, err := getGitHubUserInfo(ctx, bearerToken)
 	if err != nil {
-		span.RecordError(err)
+		observability.RecordError(ctx, span, log, err, "GitHub User Info invalid")
 		ginReturnError(ct, http.StatusUnauthorized, contentType, err.Error())
 		return
 	}
@@ -86,19 +87,19 @@ func (s *ShortlinkController) HandleCreateShortLink(ct *gin.Context) {
 
 	jsonData, err := io.ReadAll(ct.Request.Body)
 	if err != nil {
-		observability.RecordError(span, log, err, "Failed to read request-body")
+		observability.RecordError(ctx, span, log, err, "Failed to read request-body")
 		ginReturnError(ct, http.StatusInternalServerError, contentType, err.Error())
 		return
 	}
 
 	if err := json.Unmarshal([]byte(jsonData), &shortlink.Spec); err != nil {
-		observability.RecordError(span, log, err, "Failed to read spec-json")
+		observability.RecordError(ctx, span, log, err, "Failed to read spec-json")
 		ginReturnError(ct, http.StatusInternalServerError, contentType, err.Error())
 		return
 	}
 
 	if err := s.authenticatedClient.Create(ctx, githubUser.Login, &shortlink); err != nil {
-		observability.RecordError(span, log, err, "Failed to create ShortLink")
+		observability.RecordError(ctx, span, log, err, "Failed to create ShortLink")
 		ginReturnError(ct, http.StatusInternalServerError, contentType, err.Error())
 		return
 	}

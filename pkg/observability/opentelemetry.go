@@ -83,7 +83,7 @@ func InitTracer(serviceName, serviceVersion string) (*sdkTrace.TracerProvider, t
 	return traceProvider, trace, nil
 }
 
-func InitLogging(debug bool) (*zap.Logger, *otelzap.Logger, func()) {
+func InitLogging(debug bool) (*otelzap.Logger, func()) {
 	var zapLog *zap.Logger
 	var err error
 
@@ -101,9 +101,10 @@ func InitLogging(debug bool) (*zap.Logger, *otelzap.Logger, func()) {
 		otelzap.WithTraceIDField(true),
 		otelzap.WithCaller(true),
 		otelzap.WithErrorStatusLevel(zap.ErrorLevel),
+		otelzap.WithStackTrace(false),
 	)
 
 	undo := otelzap.ReplaceGlobals(otelZap)
 
-	return zapLog, otelZap, undo
+	return otelZap, undo
 }

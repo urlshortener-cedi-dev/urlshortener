@@ -5,7 +5,6 @@ import (
 
 	"github.com/cedi/urlshortener/api/v1alpha1"
 	"github.com/cedi/urlshortener/pkg/model"
-	"go.uber.org/zap"
 
 	"github.com/pkg/errors"
 	"go.opentelemetry.io/otel/attribute"
@@ -13,14 +12,12 @@ import (
 )
 
 type ShortlinkClientAuth struct {
-	zapLog *zap.Logger
 	tracer trace.Tracer
 	client *ShortlinkClient
 }
 
-func NewAuthenticatedShortlinkClient(zapLog *zap.Logger, tracer trace.Tracer, client *ShortlinkClient) *ShortlinkClientAuth {
+func NewAuthenticatedShortlinkClient(tracer trace.Tracer, client *ShortlinkClient) *ShortlinkClientAuth {
 	return &ShortlinkClientAuth{
-		zapLog: zapLog,
 		tracer: tracer,
 		client: client,
 	}

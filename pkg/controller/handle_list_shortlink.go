@@ -7,6 +7,7 @@ import (
 
 	"github.com/cedi/urlshortener/pkg/observability"
 	"github.com/gin-gonic/gin"
+	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
@@ -44,28 +45,28 @@ func (s *ShortlinkController) HandleListShortLink(ct *gin.Context) {
 		attribute.String("referrer", ct.Request.Referer()),
 	)
 
-	log := s.zapLog.Sugar().With(zap.String("operation", "list"))
+	log := otelzap.L().Sugar().With(zap.String("operation", "list"))
 
 	bearerToken := ct.Request.Header.Get("Authorization")
 	bearerToken = strings.TrimPrefix(bearerToken, "Bearer")
 	bearerToken = strings.TrimPrefix(bearerToken, "token")
 	if len(bearerToken) == 0 {
 		err := fmt.Errorf("no credentials provided")
-		span.RecordError(err)
+		observability.RecordError(ctx, span, log, err, "no credentials provided")
 		ginReturnError(ct, http.StatusUnauthorized, contentType, err.Error())
 		return
 	}
 
 	githubUser, err := getGitHubUserInfo(ctx, bearerToken)
 	if err != nil {
-		span.RecordError(err)
+		observability.RecordError(ctx, span, log, err, "GitHub User Info invalid")
 		ginReturnError(ct, http.StatusUnauthorized, contentType, err.Error())
 		return
 	}
 
 	shortlinkList, err := s.authenticatedClient.List(ctx, githubUser.Login)
 	if err != nil {
-		observability.RecordError(span, log, err, "Failed to list ShortLink")
+		observability.RecordError(ctx, span, log, err, "Failed to list ShortLink")
 
 		statusCode := http.StatusInternalServerError
 

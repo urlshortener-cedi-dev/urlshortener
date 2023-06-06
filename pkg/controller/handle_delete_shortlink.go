@@ -7,6 +7,7 @@ import (
 
 	"github.com/cedi/urlshortener/pkg/observability"
 	"github.com/gin-gonic/gin"
+	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
@@ -46,7 +47,7 @@ func (s *ShortlinkController) HandleDeleteShortLink(ct *gin.Context) {
 		attribute.String("referrer", ct.Request.Referer()),
 	)
 
-	log := s.zapLog.Sugar().With(zap.String("shortlink", shortlinkName),
+	log := otelzap.L().Sugar().With(zap.String("shortlink", shortlinkName),
 		zap.String("operation", "delete"),
 	)
 
@@ -55,21 +56,21 @@ func (s *ShortlinkController) HandleDeleteShortLink(ct *gin.Context) {
 	bearerToken = strings.TrimPrefix(bearerToken, "token")
 	if len(bearerToken) == 0 {
 		err := fmt.Errorf("no credentials provided")
-		span.RecordError(err)
+		observability.RecordError(ctx, span, log, err, "no credentials provided")
 		ginReturnError(ct, http.StatusUnauthorized, contentType, err.Error())
 		return
 	}
 
 	githubUser, err := getGitHubUserInfo(ctx, bearerToken)
 	if err != nil {
-		span.RecordError(err)
+		observability.RecordError(ctx, span, log, err, "GitHub User Info invalid")
 		ginReturnError(ct, http.StatusUnauthorized, contentType, err.Error())
 		return
 	}
 
 	shortlink, err := s.authenticatedClient.Get(ctx, githubUser.Login, shortlinkName)
 	if err != nil {
-		observability.RecordError(span, log, err, "Failed to get ShortLink")
+		observability.RecordError(ctx, span, log, err, "Failed to get ShortLink")
 
 		statusCode := http.StatusInternalServerError
 
@@ -94,7 +95,7 @@ func (s *ShortlinkController) HandleDeleteShortLink(ct *gin.Context) {
 			statusCode = http.StatusNotFound
 		}
 
-		observability.RecordError(span, log, err, "Failed to delete ShortLink")
+		observability.RecordError(ctx, span, log, err, "Failed to delete ShortLink")
 
 		ginReturnError(ct, statusCode, contentType, err.Error())
 		return

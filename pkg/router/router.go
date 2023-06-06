@@ -5,6 +5,7 @@ import (
 
 	docs "github.com/cedi/urlshortener/docs"
 	urlShortenerController "github.com/cedi/urlshortener/pkg/controller"
+	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 	"go.uber.org/zap"
 
 	"github.com/gin-gonic/contrib/secure"
@@ -32,7 +33,7 @@ import (
 // @in header
 // @name Authorization
 
-func NewGinGonicHTTPServer(bindAddr string, zapLog *zap.Logger, serviceName string) (*gin.Engine, *http.Server) {
+func NewGinGonicHTTPServer(bindAddr string, serviceName string) (*gin.Engine, *http.Server) {
 	router := gin.New()
 	router.Use(
 		otelgin.Middleware(serviceName),
@@ -54,7 +55,7 @@ func NewGinGonicHTTPServer(bindAddr string, zapLog *zap.Logger, serviceName stri
 	//static path
 	router.Static("assets", "./html/assets")
 
-	zapLog.Sugar().Infow("Starting gin-tonic router",
+	otelzap.L().Sugar().Infow("Starting gin-tonic router",
 		zap.String("bindAddr", bindAddr),
 	)
 
