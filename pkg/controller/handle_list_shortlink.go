@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"go.uber.org/zap"
 )
 
 // HandleListShortLink handles the listing of
@@ -43,6 +44,8 @@ func (s *ShortlinkController) HandleListShortLink(ct *gin.Context) {
 		attribute.String("referrer", ct.Request.Referer()),
 	)
 
+	log := s.zapLog.Sugar().With(zap.String("operation", "list"))
+
 	bearerToken := ct.Request.Header.Get("Authorization")
 	bearerToken = strings.TrimPrefix(bearerToken, "Bearer")
 	bearerToken = strings.TrimPrefix(bearerToken, "token")
@@ -62,7 +65,7 @@ func (s *ShortlinkController) HandleListShortLink(ct *gin.Context) {
 
 	shortlinkList, err := s.authenticatedClient.List(ctx, githubUser.Login)
 	if err != nil {
-		observability.RecordError(span, s.log, err, "Failed to list ShortLink")
+		observability.RecordError(span, log, err, "Failed to list ShortLink")
 
 		statusCode := http.StatusInternalServerError
 

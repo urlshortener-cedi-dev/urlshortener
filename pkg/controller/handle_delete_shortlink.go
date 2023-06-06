@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"go.uber.org/zap"
 )
 
 // HandleDeleteShortLink handles the deletion of a shortlink
@@ -45,6 +46,10 @@ func (s *ShortlinkController) HandleDeleteShortLink(ct *gin.Context) {
 		attribute.String("referrer", ct.Request.Referer()),
 	)
 
+	log := s.zapLog.Sugar().With(zap.String("shortlink", shortlinkName),
+		zap.String("operation", "delete"),
+	)
+
 	bearerToken := ct.Request.Header.Get("Authorization")
 	bearerToken = strings.TrimPrefix(bearerToken, "Bearer")
 	bearerToken = strings.TrimPrefix(bearerToken, "token")
@@ -64,7 +69,7 @@ func (s *ShortlinkController) HandleDeleteShortLink(ct *gin.Context) {
 
 	shortlink, err := s.authenticatedClient.Get(ctx, githubUser.Login, shortlinkName)
 	if err != nil {
-		observability.RecordError(span, s.log, err, "Failed to get ShortLink")
+		observability.RecordError(span, log, err, "Failed to get ShortLink")
 
 		statusCode := http.StatusInternalServerError
 
@@ -89,7 +94,7 @@ func (s *ShortlinkController) HandleDeleteShortLink(ct *gin.Context) {
 			statusCode = http.StatusNotFound
 		}
 
-		observability.RecordError(span, s.log, err, "Failed to delete ShortLink")
+		observability.RecordError(span, log, err, "Failed to delete ShortLink")
 
 		ginReturnError(ct, statusCode, contentType, err.Error())
 		return

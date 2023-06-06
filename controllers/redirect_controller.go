@@ -22,6 +22,7 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"go.uber.org/zap"
 	networkingv1 "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -33,7 +34,6 @@ import (
 	redirectclient "github.com/cedi/urlshortener/pkg/client"
 	"github.com/cedi/urlshortener/pkg/observability"
 	redirectpkg "github.com/cedi/urlshortener/pkg/redirect"
-	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 )
 
@@ -43,17 +43,17 @@ type RedirectReconciler struct {
 	rClient *redirectclient.RedirectClient
 
 	scheme *runtime.Scheme
-	log    *logr.Logger
+	zapLog *zap.Logger
 	tracer trace.Tracer
 }
 
 // NewRedirectReconciler returns a new RedirectReconciler
-func NewRedirectReconciler(client client.Client, rClient *redirectclient.RedirectClient, scheme *runtime.Scheme, log *logr.Logger, tracer trace.Tracer) *RedirectReconciler {
+func NewRedirectReconciler(client client.Client, rClient *redirectclient.RedirectClient, scheme *runtime.Scheme, zapLog *zap.Logger, tracer trace.Tracer) *RedirectReconciler {
 	return &RedirectReconciler{
 		client:  client,
 		rClient: rClient,
 		scheme:  scheme,
-		log:     log,
+		zapLog:  zapLog,
 		tracer:  tracer,
 	}
 }
@@ -86,7 +86,7 @@ func (r *RedirectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 
 	span.SetAttributes(attribute.String("redirect", req.NamespacedName.String()))
 
-	log := r.log.WithName("reconciler").WithValues("redirect", req.NamespacedName)
+	log := r.zapLog.Sugar().With(zap.String("name", "reconciler"), zap.String("redirect", req.NamespacedName.String()))
 
 	// Monitor the number of redirects
 	if redirectList, err := r.rClient.List(ctx); redirectList != nil && err == nil {
@@ -100,19 +100,19 @@ func (r *RedirectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
-			observability.RecordInfo(span, &log, "Shortlink resource not found. Ignoring since object must be deleted")
+			observability.RecordInfo(span, log, "Shortlink resource not found. Ignoring since object must be deleted")
 			return ctrl.Result{}, nil
 		}
 
 		// Error reading the object - requeue the request.
-		observability.RecordError(span, &log, err, "Failed to fetch Redirect resource")
+		observability.RecordError(span, log, err, "Failed to fetch Redirect resource")
 		return ctrl.Result{}, err
 	}
 
 	// Check if the ingress already exists, if not create a new one
 	ingress, err := r.upsertRedirectIngress(ctx, redirect)
 	if err != nil {
-		observability.RecordError(span, &log, err, "Failed to upsert redirect ingress")
+		observability.RecordError(span, log, err, "Failed to upsert redirect ingress")
 	}
 
 	// Update the Redirect status with the ingress name and the target
@@ -123,7 +123,7 @@ func (r *RedirectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	}
 
 	if err = r.client.List(ctx, ingressList, listOpts...); err != nil {
-		observability.RecordError(span, &log, err, "Failed to list ingresses")
+		observability.RecordError(span, log, err, "Failed to list ingresses")
 		return ctrl.Result{}, err
 	}
 
@@ -132,7 +132,7 @@ func (r *RedirectReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 	redirect.Status.Target = ingress.ObjectMeta.Annotations["nginx.ingress.kubernetes.io/permanent-redirect"]
 	err = r.client.Status().Update(ctx, redirect)
 	if err != nil {
-		observability.RecordError(span, &log, err, "Failed to update Redirect status")
+		observability.RecordError(span, log, err, "Failed to update Redirect status")
 		return ctrl.Result{}, err
 	}
 

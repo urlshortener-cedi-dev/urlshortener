@@ -27,16 +27,16 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilRuntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientGoScheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-logr/logr"
+	"github.com/go-logr/zapr"
 
 	v1alpha1 "github.com/cedi/urlshortener/api/v1alpha1"
 	"github.com/cedi/urlshortener/controllers"
@@ -78,34 +78,37 @@ func main() {
 	var probeAddr string
 	var bindAddr string
 	var namespaced bool
+	var debug bool
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":9110", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":9081", "The address the probe endpoint binds to.")
 	flag.StringVar(&bindAddr, "bind-address", ":8443", "The address the service binds to.")
 	flag.BoolVar(&namespaced, "namespaced", true, "Restrict the urlshortener to only list resources in the current namespace")
+	flag.BoolVar(&debug, "debug", false, "Turn on debug logging")
 
-	opts := zap.Options{
-		Development: false, // false = production mode = JSON log format
-	}
-
-	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
 	// Initialize Logging
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-	setupLog := ctrl.Log.WithName("setup")
-	shutdownLog := ctrl.Log.WithName("shutdown")
+	zapLog, otelLogger, undo := observability.InitLogging(debug)
+	defer otelLogger.Sync()
+	defer undo()
+
+	ctrl.SetLogger(zapr.NewLogger(zapLog))
 
 	// Initialize Tracing (OpenTelemetry)
 	traceProvider, tracer, err := observability.InitTracer(serviceName, serviceVersion)
 	if err != nil {
-		setupLog.Error(err, "failed initializing tracing")
+		zapLog.Sugar().Errorw("failed initializing tracing",
+			zap.Error(err),
+		)
 		os.Exit(1)
 	}
 
 	defer func() {
 		if err := traceProvider.Shutdown(context.Background()); err != nil {
-			shutdownLog.Error(err, "Error shutting down tracer provider")
+			zapLog.Sugar().Errorw("Error shutting down tracer provider",
+				zap.Error(err),
+			)
 		}
 	}()
 
@@ -118,7 +121,9 @@ func main() {
 		namespaceByte, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 		if err != nil {
 			span.RecordError(err)
-			setupLog.Error(err, "Unable to read current namespace")
+			zapLog.Sugar().Errorw("Error shutting down tracer provider",
+				zap.Error(err),
+			)
 			os.Exit(1)
 		}
 		span.End()
@@ -140,7 +145,9 @@ func main() {
 
 	if err != nil {
 		span.RecordError(err)
-		setupLog.Error(err, "unable to start urlshortener")
+		zapLog.Sugar().Errorw("unable to start urlshortener",
+			zap.Error(err),
+		)
 		os.Exit(1)
 	}
 
@@ -159,13 +166,16 @@ func main() {
 	shortlinkReconciler := controllers.NewShortLinkReconciler(
 		sClient,
 		mgr.GetScheme(),
-		&ctrl.Log,
+		zapLog,
 		tracer,
 	)
 
 	if err = shortlinkReconciler.SetupWithManager(mgr); err != nil {
 		span.RecordError(err)
-		setupLog.Error(err, "unable to create controller", "controller", "ShortLink")
+		zapLog.Sugar().Errorw("unable to create controller",
+			zap.Error(err),
+			zap.String("controller", "ShortLink"),
+		)
 		os.Exit(1)
 	}
 
@@ -173,13 +183,16 @@ func main() {
 		mgr.GetClient(),
 		rClient,
 		mgr.GetScheme(),
-		&ctrl.Log,
+		zapLog,
 		tracer,
 	)
 
 	if err = redirectReconciler.SetupWithManager(mgr); err != nil {
 		span.RecordError(err)
-		setupLog.Error(err, "unable to create controller", "controller", "Redirect")
+		zapLog.Sugar().Errorw("unable to create controller",
+			zap.Error(err),
+			zap.String("controller", "Redirect"),
+		)
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
@@ -187,52 +200,61 @@ func main() {
 	span.End()
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up health check")
+		zapLog.Sugar().Errorw("unable to set up health check",
+			zap.Error(err),
+		)
 		os.Exit(1)
 	}
 
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		setupLog.Error(err, "unable to set up ready check")
+		zapLog.Sugar().Errorw("unable to set up ready check",
+			zap.Error(err),
+		)
 		os.Exit(1)
 	}
 
 	// run our urlshortener mgr in a separate go routine
 	go func() {
-		setupLog.Info("starting urlshortener")
+		zapLog.Info("starting urlshortener")
+
 		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-			setupLog.Error(err, "problem running urlshortener")
+			zapLog.Sugar().Errorw("unable starting urlshortener",
+				zap.Error(err),
+			)
 			os.Exit(1)
 		}
 	}()
 
 	shortlinkController := apiController.NewShortlinkController(
-		&ctrl.Log,
+		zapLog,
 		tracer,
 		sClient,
 	)
 
 	// Init Gin Framework
 	gin.SetMode(gin.ReleaseMode)
-	r, srv := router.NewGinGonicHTTPServer(bindAddr, &setupLog, serviceName)
+	r, srv := router.NewGinGonicHTTPServer(bindAddr, zapLog, serviceName)
 
-	setupLog.Info("Load API routes")
+	zapLog.Info("Load API routes")
 	router.Load(r, shortlinkController)
 
 	// run our gin server mgr in a separate go routine
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && errors.Is(err, http.ErrServerClosed) {
-			setupLog.Error(err, "listen\n")
+			zapLog.Sugar().Errorw("failed to listen and serve",
+				zap.Error(err),
+			)
 		}
 	}()
 
-	handleShutdown(srv, &shutdownLog)
+	handleShutdown(srv, zapLog)
 
-	shutdownLog.Info("Server exiting")
+	zapLog.Info("Server exiting")
 }
 
 // handleShutdown waits for interrupt signal and then tries to gracefully
 // shutdown the server with a timeout of 5 seconds.
-func handleShutdown(srv *http.Server, shutdownLog *logr.Logger) {
+func handleShutdown(srv *http.Server, zapLog *zap.Logger) {
 	quit := make(chan os.Signal, 1)
 
 	signal.Notify(
@@ -244,7 +266,7 @@ func handleShutdown(srv *http.Server, shutdownLog *logr.Logger) {
 
 	// wait (and block) until shutdown signal is received
 	<-quit
-	shutdownLog.Info("Shutting down server...")
+	zapLog.Info("Shutting down server...")
 
 	// The context is used to inform the server it has 5 seconds to finish
 	// the request it is currently handling
@@ -255,7 +277,9 @@ func handleShutdown(srv *http.Server, shutdownLog *logr.Logger) {
 	// then srv.Shutdown(ctx) will return an error, causing us to force
 	// the shutdown
 	if err := srv.Shutdown(ctx); err != nil {
-		shutdownLog.Error(err, "Server forced to shutdown")
+		zapLog.Sugar().Errorw("Server forced to shutdown",
+			zap.Error(err),
+		)
 		os.Exit(1)
 	}
 }

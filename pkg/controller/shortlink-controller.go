@@ -2,7 +2,7 @@ package controller
 
 import (
 	shortlinkClient "github.com/cedi/urlshortener/pkg/client"
-	"github.com/go-logr/logr"
+	"go.uber.org/zap"
 
 	"go.opentelemetry.io/otel/trace"
 )
@@ -11,17 +11,17 @@ import (
 type ShortlinkController struct {
 	client              *shortlinkClient.ShortlinkClient
 	authenticatedClient *shortlinkClient.ShortlinkClientAuth
-	log                 *logr.Logger
+	zapLog              *zap.Logger
 	tracer              trace.Tracer
 }
 
 // NewShortlinkController creates a new ShortlinkController
-func NewShortlinkController(log *logr.Logger, tracer trace.Tracer, client *shortlinkClient.ShortlinkClient) *ShortlinkController {
+func NewShortlinkController(zapLog *zap.Logger, tracer trace.Tracer, client *shortlinkClient.ShortlinkClient) *ShortlinkController {
 	controller := &ShortlinkController{
-		log:                 log,
+		zapLog:              zapLog,
 		tracer:              tracer,
 		client:              client,
-		authenticatedClient: shortlinkClient.NewAuthenticatedShortlinkClient(log, tracer, client),
+		authenticatedClient: shortlinkClient.NewAuthenticatedShortlinkClient(zapLog, tracer, client),
 	}
 
 	return controller

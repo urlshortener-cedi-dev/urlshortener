@@ -2,11 +2,13 @@ package observability
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 
 	"github.com/MrAlias/flow"
 	"github.com/pkg/errors"
+	"github.com/uptrace/opentelemetry-go-extra/otelzap"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
@@ -15,10 +17,10 @@ import (
 	sdkTrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.opentelemetry.io/otel/trace"
+	"go.uber.org/zap"
 )
 
 func InitTracer(serviceName, serviceVersion string) (*sdkTrace.TracerProvider, trace.Tracer, error) {
-
 	otlpEndpoint, ok := os.LookupEnv("OTLP_ENDPOINT")
 	otlpInsecure := os.Getenv("OTLP_INSECURE")
 
@@ -79,4 +81,29 @@ func InitTracer(serviceName, serviceVersion string) (*sdkTrace.TracerProvider, t
 	otel.SetTextMapPropagator(propagation.TraceContext{})
 
 	return traceProvider, trace, nil
+}
+
+func InitLogging(debug bool) (*zap.Logger, *otelzap.Logger, func()) {
+	var zapLog *zap.Logger
+	var err error
+
+	if debug {
+		zapLog, err = zap.NewDevelopment()
+	} else {
+		zapLog, err = zap.NewProduction()
+	}
+
+	if err != nil {
+		panic(fmt.Sprintf("Failed to initialize logger (%v)", err))
+	}
+
+	otelZap := otelzap.New(zapLog,
+		otelzap.WithTraceIDField(true),
+		otelzap.WithCaller(true),
+		otelzap.WithErrorStatusLevel(zap.ErrorLevel),
+	)
+
+	undo := otelzap.ReplaceGlobals(otelZap)
+
+	return zapLog, otelZap, undo
 }

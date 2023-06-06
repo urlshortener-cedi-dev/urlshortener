@@ -1,16 +1,15 @@
 package router
 
 import (
-	"fmt"
 	"net/http"
 
 	docs "github.com/cedi/urlshortener/docs"
 	urlShortenerController "github.com/cedi/urlshortener/pkg/controller"
+	"go.uber.org/zap"
 
 	"github.com/gin-gonic/contrib/secure"
 	"github.com/gin-gonic/gin"
 
-	"github.com/go-logr/logr"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 
 	swaggerFiles "github.com/swaggo/files"
@@ -33,7 +32,7 @@ import (
 // @in header
 // @name Authorization
 
-func NewGinGonicHTTPServer(bindAddr string, setupLog *logr.Logger, serviceName string) (*gin.Engine, *http.Server) {
+func NewGinGonicHTTPServer(bindAddr string, zapLog *zap.Logger, serviceName string) (*gin.Engine, *http.Server) {
 	router := gin.New()
 	router.Use(
 		otelgin.Middleware(serviceName),
@@ -55,7 +54,10 @@ func NewGinGonicHTTPServer(bindAddr string, setupLog *logr.Logger, serviceName s
 	//static path
 	router.Static("assets", "./html/assets")
 
-	setupLog.Info(fmt.Sprintf("Starting gin-tonic router on binAddr: '%s'", bindAddr))
+	zapLog.Sugar().Infow("Starting gin-tonic router",
+		zap.String("bindAddr", bindAddr),
+	)
+
 	srv := &http.Server{
 		Addr:    bindAddr,
 		Handler: router,

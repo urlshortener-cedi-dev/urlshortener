@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"go.uber.org/zap"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -55,6 +56,10 @@ func (s *ShortlinkController) HandleCreateShortLink(ct *gin.Context) {
 		attribute.String("referrer", ct.Request.Referer()),
 	)
 
+	log := s.zapLog.Sugar().With(zap.String("shortlink", shortlinkName),
+		zap.String("operation", "create"),
+	)
+
 	bearerToken := ct.Request.Header.Get("Authorization")
 	bearerToken = strings.TrimPrefix(bearerToken, "Bearer")
 	bearerToken = strings.TrimPrefix(bearerToken, "token")
@@ -81,19 +86,19 @@ func (s *ShortlinkController) HandleCreateShortLink(ct *gin.Context) {
 
 	jsonData, err := io.ReadAll(ct.Request.Body)
 	if err != nil {
-		observability.RecordError(span, s.log, err, "Failed to read request-body")
+		observability.RecordError(span, log, err, "Failed to read request-body")
 		ginReturnError(ct, http.StatusInternalServerError, contentType, err.Error())
 		return
 	}
 
 	if err := json.Unmarshal([]byte(jsonData), &shortlink.Spec); err != nil {
-		observability.RecordError(span, s.log, err, "Failed to read spec-json")
+		observability.RecordError(span, log, err, "Failed to read spec-json")
 		ginReturnError(ct, http.StatusInternalServerError, contentType, err.Error())
 		return
 	}
 
 	if err := s.authenticatedClient.Create(ctx, githubUser.Login, &shortlink); err != nil {
-		observability.RecordError(span, s.log, err, "Failed to create ShortLink")
+		observability.RecordError(span, log, err, "Failed to create ShortLink")
 		ginReturnError(ct, http.StatusInternalServerError, contentType, err.Error())
 		return
 	}

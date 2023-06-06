@@ -22,6 +22,7 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"go.uber.org/zap"
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,23 +31,22 @@ import (
 	v1alpha1 "github.com/cedi/urlshortener/api/v1alpha1"
 	shortlinkclient "github.com/cedi/urlshortener/pkg/client"
 	"github.com/cedi/urlshortener/pkg/observability"
-	"github.com/go-logr/logr"
 )
 
 // ShortLinkReconciler reconciles a ShortLink object
 type ShortLinkReconciler struct {
 	client *shortlinkclient.ShortlinkClient
 	scheme *runtime.Scheme
-	log    *logr.Logger
+	zapLog *zap.Logger
 	tracer trace.Tracer
 }
 
 // NewShortLinkReconciler returns a new ShortLinkReconciler
-func NewShortLinkReconciler(client *shortlinkclient.ShortlinkClient, scheme *runtime.Scheme, log *logr.Logger, tracer trace.Tracer) *ShortLinkReconciler {
+func NewShortLinkReconciler(client *shortlinkclient.ShortlinkClient, scheme *runtime.Scheme, zapLog *zap.Logger, tracer trace.Tracer) *ShortLinkReconciler {
 	return &ShortLinkReconciler{
 		client: client,
 		scheme: scheme,
-		log:    log,
+		zapLog: zapLog,
 		tracer: tracer,
 	}
 }
@@ -76,15 +76,15 @@ func (r *ShortLinkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	span.SetAttributes(attribute.String("shortlink", req.Name))
 
-	log := r.log.WithName("reconciler").WithValues("shortlink", req.NamespacedName.String())
+	log := r.zapLog.Sugar().With(zap.String("name", "reconciler"), zap.String("shortlink", req.NamespacedName.String()))
 
 	// Get ShortLink from etcd
 	shortlink, err := r.client.GetNamespaced(ctx, req.NamespacedName)
 	if err != nil || shortlink == nil {
 		if errors.IsNotFound(err) {
-			observability.RecordInfo(span, &log, "Shortlink resource not found. Ignoring since object must be deleted")
+			observability.RecordInfo(span, log, "Shortlink resource not found. Ignoring since object must be deleted")
 		} else {
-			observability.RecordError(span, &log, err, "Failed to fetch ShortLink resource")
+			observability.RecordError(span, log, err, "Failed to fetch ShortLink resource")
 		}
 	}
 
